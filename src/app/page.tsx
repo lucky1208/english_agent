@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Sparkles, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ensureGuestSession, guestAuthErrorMessage } from "@/lib/supabase/guest";
+import { ensureSession, sessionAuthErrorMessage } from "@/lib/supabase/session";
 
 type Correction = {
   originalText: string;
@@ -211,16 +211,16 @@ export default function HomePage() {
   useEffect(() => {
     try {
       const supabase = createSupabaseBrowserClient();
-      ensureGuestSession(supabase)
+      ensureSession(supabase)
         .then(() => {
           void loadConversations();
           void loadSideData();
         })
         .catch((e) => {
-          setError(guestAuthErrorMessage(e));
+          setError(sessionAuthErrorMessage(e));
         });
     } catch (e) {
-      setError(guestAuthErrorMessage(e));
+      setError(sessionAuthErrorMessage(e));
     }
   }, [loadConversations, loadSideData]);
 

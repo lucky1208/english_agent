@@ -40,6 +40,17 @@ export async function POST(request: Request) {
     }
   }
 
+  const fixedEmail = process.env.FIXED_ACCOUNT_EMAIL?.trim().toLowerCase();
+  if (fixedEmail && user.email?.toLowerCase() === fixedEmail) {
+    return NextResponse.json({
+      ok: true,
+      authDeleted: false,
+      deletedMemories,
+      memoryError: memoryError || undefined,
+      note: "固定账户已保留，学习数据已清空。刷新页面即可继续使用。",
+    });
+  }
+
   const admin = createSupabaseAdminClient();
   if (!admin) {
     return NextResponse.json({

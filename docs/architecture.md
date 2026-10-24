@@ -9,15 +9,15 @@
 - Bailian Qwen-Audio-Realtime over WebRTC for live voice. The browser talks to Bailian directly for media; Vercel only proxies the SDP exchange.
 - Bailian Memory API is an optional semantic layer. It is never the source of truth.
 
-## Guest session flow
+## Session flow
 
-1. `AppShell` and the home page call `ensureGuestSession()`.
-2. If `auth.getUser()` already returns a session, that user is reused.
-3. Otherwise the browser calls `supabase.auth.signInAnonymously()`.
-4. The anonymous user gets a normal Supabase JWT and a `profiles` row via the existing trigger.
+1. `AppShell` and the home page call `ensureSession()`.
+2. The browser calls `/api/auth/fixed`.
+3. If `FIXED_ACCOUNT_EMAIL/PASSWORD` are configured, the server route signs into that Supabase user, optionally requiring `FIXED_ACCOUNT_ACCESS_CODE`.
+4. If fixed credentials are not configured, the route returns `configured: false` and the browser falls back to `supabase.auth.signInAnonymously()`.
 5. `/login` redirects to `/`; there is no email/password UI.
 
-Anonymous identity is cookie-bound: clearing cookies creates a new guest and cannot recover the old records. Public deployments should add IP-based limits, CAPTCHA, and an account-upgrade flow.
+The fixed account is a single shared identity protected by an access code. Anonymous fallback identity is cookie-bound: clearing cookies creates a new guest and cannot recover the old records. Public deployments should add IP-based limits, CAPTCHA, and an account-upgrade flow.
 
 ## Text request flow
 

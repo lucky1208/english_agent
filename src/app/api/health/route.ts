@@ -15,6 +15,8 @@ export async function GET() {
       bailianMemory: isBailianMemoryConfigured(),
       rateLimit: Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
       authAccountDeletion: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      fixedAccount: Boolean(process.env.FIXED_ACCOUNT_EMAIL && process.env.FIXED_ACCOUNT_PASSWORD),
+      fixedAccountAccessCode: Boolean(process.env.FIXED_ACCOUNT_ACCESS_CODE),
     },
   });
 }

@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, BookMarked, BookOpen, MessageCircle, RefreshCcw, Settings, Sprout } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { ensureGuestSession, guestAuthErrorMessage, guestLabel } from "@/lib/supabase/guest";
+import {
+  ACCESS_CODE_STORAGE_KEY,
+  AccessCodeRequiredError,
+  ensureSession,
+  sessionAuthErrorMessage,
+} from "@/lib/supabase/session";
 
 const nav = [
   { href: "/", label: "练习对话", icon: MessageCircle },
@@ -21,18 +26,22 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
   const [userLabel, setUserLabel] = useState("");
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [codeRequired, setCodeRequired] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     try {
       const supabase = createSupabaseBrowserClient();
-      ensureGuestSession(supabase)
+      ensureSession(supabase)
         .then((user) => {
-          setUserLabel(guestLabel(user));
+          setUserLabel(user.label);
           setAuthError("");
+          setCodeRequired(false);
         })
         .catch((error) => {
-          setAuthError(guestAuthErrorMessage(error));
+          if (error instanceof AccessCodeRequiredError) setCodeRequired(true);
+          setAuthError(sessionAuthErrorMessage(error));
         })
         .finally(() => {
           setAuthReady(true);
@@ -40,17 +49,25 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
 
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
-          setUserLabel(guestLabel(session.user));
+          setUserLabel(session.user.is_anonymous ? "游客模式" : session.user.email ?? "已登录");
           setAuthError("");
         }
       });
       unsubscribe = () => data.subscription.unsubscribe();
     } catch (error) {
-      setAuthError(guestAuthErrorMessage(error));
+      setAuthError(sessionAuthErrorMessage(error));
       setAuthReady(true);
     }
     return () => unsubscribe?.();
   }, []);
+
+  function submitAccessCode(event: FormEvent) {
+    event.preventDefault();
+    const code = accessCode.trim();
+    if (!code) return;
+    window.sessionStorage.setItem(ACCESS_CODE_STORAGE_KEY, code);
+    window.location.reload();
+  }
 
   if (!authReady || !userLabel) {
     return (
@@ -58,15 +75,34 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
         <div className="auth-card">
           <div className="brand"><span className="brand-mark"><Sprout size={18} /></span><span>English Mate</span></div>
           <p className="page-lede" style={{ marginTop: 20 }}>
-            {authError || "正在创建游客会话…"}
+            {authError || (codeRequired ? "请输入访问码。" : "正在创建登录会话…")}
           </p>
-          <p className="inline-muted" style={{ marginTop: 12 }}>
-            免登录模式会自动创建一个 Supabase 匿名用户。请在 Supabase 开启 Anonymous Sign-Ins，并在 Vercel 配置 Supabase URL 与 anon key。
-          </p>
-          <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-            <a className="btn btn-primary" href="/api/health" target="_blank" rel="noreferrer">检查配置状态</a>
-            <Link className="btn" href="/privacy">隐私政策</Link>
-          </div>
+          {codeRequired ? (
+            <form onSubmit={submitAccessCode}>
+              <label className="field-label" htmlFor="accessCode">访问码</label>
+              <input
+                id="accessCode"
+                className="field"
+                type="password"
+                autoFocus
+                autoComplete="current-password"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+                placeholder="输入固定账户访问码"
+              />
+              <button className="btn btn-primary" type="submit" disabled={!accessCode.trim()}>进入</button>
+            </form>
+          ) : (
+            <>
+              <p className="inline-muted" style={{ marginTop: 12 }}>
+                固定账户会自动登录；未配置固定账户时回退到 Supabase 匿名游客。请在 Vercel 配置 Supabase URL、anon key，并在 Supabase 开启 Anonymous Sign-Ins。
+              </p>
+              <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+                <a className="btn btn-primary" href="/api/health" target="_blank" rel="noreferrer">检查配置状态</a>
+                <Link className="btn" href="/privacy">隐私政策</Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

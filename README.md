@@ -6,7 +6,7 @@
 
 ## 1. 功能
 
-- 免登录游客模式：首次访问自动创建 Supabase 匿名用户，所有数据仍由 PostgreSQL RLS 按用户隔离。
+- 免登录固定账户：配置一个 Supabase 账户后自动登录，适合个人使用；未配置时回退到 Supabase 匿名游客。所有数据仍由 PostgreSQL RLS 按用户隔离。
 - 百炼 OpenAI 兼容文本接口（默认 `qwen-plus`）生成对话、纠错和词汇建议。
 - 实时语音：浏览器 WebRTC 直连百炼，服务端只代理 SDP 鉴权，不经过 Vercel 转发音频。
 - 语音实时字幕、打断、静音；通话结束后保存用户和 AI 的转写文本。
@@ -40,7 +40,7 @@
 
 - 文本模型不能可靠判断发音。语音纠错基于 ASR 转写，主要覆盖语法、用词、搭配和自然度，不应宣传“发音评分”。
 - 真实语音端到端验证需要你自己的百炼账户、麦克风、HTTPS 域名和模型权限，本地无密钥无法代替。
-- 正式公开产品还需要支付/配额、游客账号升级/绑定、监控告警、备份、成本上限和法务审查。匿名账号与浏览器 cookie 绑定，清除 cookie 后会变成新游客，因此公开产品还需要按 IP 限流或验证码。
+- 固定账户模式适合个人使用，不适合多用户公开产品。公开产品需要支付/配额、账号升级/绑定、监控告警、备份、成本上限和法务审查。匿名回退账号与浏览器 cookie 绑定，清除 cookie 后会变成新游客，因此公开产品还需要按 IP 限流或验证码。
 
 ## 3. 技术架构
 
@@ -133,12 +133,16 @@ npm run dev
 
 1. 新建 Supabase 项目。
 2. 打开 SQL Editor，执行 `supabase/schema.sql`。
-3. Project Settings → API，复制 URL、anon key；如需“删除匿名账户”，再复制 service_role key（只放服务端）。
-4. **Authentication → Providers → Anonymous Sign-Ins → 开启**。这是免登录模式必须的一步。
-5. Authentication → URL Configuration：
+3. Project Settings → API，复制 URL、anon key；如需“删除账户”，再复制 service_role key（只放服务端）。
+4. **固定账户模式（推荐个人使用）**：
+   - Authentication → Users → Add user，创建一个邮箱 + 密码账户，并勾选自动确认邮箱。
+   - 在 Vercel 配置 `FIXED_ACCOUNT_EMAIL`、`FIXED_ACCOUNT_PASSWORD`、`FIXED_ACCOUNT_ACCESS_CODE`。
+   - 页面会自动登录这个账户；访问码只需在当前浏览器会话输入一次。
+5. **游客回退模式（不配置固定账户时）**：Authentication → Providers → 开启 Anonymous Sign-Ins。
+6. Authentication → URL Configuration：
    - Site URL：`http://localhost:3000`
    - Redirect URLs：`http://localhost:3000/**`、Vercel Preview 域名和正式域名。
-6. 可选：以后要支持邮箱账号升级时，再开启邮箱确认并配置 SMTP。
+7. 可选：以后要支持邮箱账号升级时，再开启邮箱确认并配置 SMTP。
 
 ### 6.2 阿里云百炼
 
@@ -152,6 +156,16 @@ DASHSCOPE_REALTIME_URL=https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1
 DASHSCOPE_REALTIME_MODEL=qwen-audio-3.1-realtime-plus
 DASHSCOPE_REALTIME_VOICE=longanqian_v3.1
 ```
+
+固定账户（可选，个人使用推荐）：
+
+```env
+FIXED_ACCOUNT_EMAIL=you@example.com
+FIXED_ACCOUNT_PASSWORD=your-supabase-user-password
+FIXED_ACCOUNT_ACCESS_CODE=a-long-random-string
+```
+
+`FIXED_ACCOUNT_EMAIL/PASSWORD` 只放服务端；`FIXED_ACCOUNT_ACCESS_CODE` 在生产环境是必需的，防止任何人直接使用你的固定账户。访问码由浏览器在第一次进入时询问，保存在当前标签页的 `sessionStorage`。
 
 长期记忆可选：
 
@@ -294,6 +308,9 @@ vercel env add DASHSCOPE_REALTIME_VOICE
 vercel env add NEXT_PUBLIC_SUPABASE_URL
 vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY
 vercel env add SUPABASE_SERVICE_ROLE_KEY
+vercel env add FIXED_ACCOUNT_EMAIL
+vercel env add FIXED_ACCOUNT_PASSWORD
+vercel env add FIXED_ACCOUNT_ACCESS_CODE
 vercel env add UPSTASH_REDIS_REST_URL
 vercel env add UPSTASH_REDIS_REST_TOKEN
 vercel env add NEXT_PUBLIC_APP_URL
@@ -312,7 +329,8 @@ vercel --prod
 - [ ] 生产环境配置 Upstash；未配置时 AI 接口 fail closed。
 - [ ] 百炼和 Supabase 设置费用/配额告警。
 - [ ] 不保存原始音频；隐私页明确说明音频会发送给百炼处理。
-- [ ] 配置匿名会话 cookie、会话过期和数据恢复策略；公开产品增加 IP 限流、验证码和账号升级/绑定。
+- [ ] 固定账户模式必须配置 `FIXED_ACCOUNT_ACCESS_CODE`；不要把密码或访问码写进前端。
+- [ ] 配置会话过期和数据恢复策略；公开产品增加 IP 限流、验证码和账号升级/绑定。
 - [ ] 完成隐私政策、服务条款、适龄政策和目标法域合规审查；替换页面中的联系信息占位符。
 - [ ] 配置错误监控、数据库备份、恢复演练和日志脱敏。
 - [ ] 限制 Vercel Function 执行时间；实时音频不经过 serverless 长连接。
