@@ -208,13 +208,19 @@ export default function HomePage() {
   }, [loadMessages]);
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        void loadConversations();
-        void loadSideData();
-      }
-    });
+    try {
+      const supabase = createSupabaseBrowserClient();
+      supabase.auth.getUser().then(({ data }) => {
+        if (data.user) {
+          void loadConversations();
+          void loadSideData();
+        }
+      }).catch(() => {
+        setError("无法读取登录状态，请检查 Supabase 配置。");
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "请先配置 Supabase 环境变量。");
+    }
   }, [loadConversations, loadSideData]);
 
   useEffect(() => {

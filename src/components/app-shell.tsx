@@ -42,8 +42,12 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
   }, [router]);
 
   async function signOut() {
-    const supabase = createSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } catch {
+      // The login page will show the configuration error if env vars are missing.
+    }
     router.replace("/login");
   }
 
