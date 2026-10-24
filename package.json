@@ -15,7 +15,6 @@
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
-    "@next/swc-win32-x64-msvc": "^15.5.28",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.57.0",
     "@upstash/ratelimit": "^2.0.6",
