@@ -1,10 +1,10 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabasePublicConfig } from "@/lib/supabase/config";
 
 export async function createSupabaseServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) throw new Error("Supabase 环境变量未配置。");
+  const { url, anonKey } = getSupabasePublicConfig();
+  if (!url || !anonKey) throw new Error("Supabase 环境变量未配置（Project URL 和 anon/publishable key）。");
   const cookieStore = await cookies();
   return createServerClient(url, anonKey, {
     cookies: {

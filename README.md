@@ -133,7 +133,7 @@ npm run dev
 
 1. 新建 Supabase 项目。
 2. 打开 SQL Editor，执行 `supabase/schema.sql`。
-3. Project Settings → API，复制 URL、anon key；如需“删除账户”，再复制 service_role key（只放服务端）。
+3. 新版 Supabase 控制台：点击顶部绿色 **Connect**，或 Settings → **API Keys**，复制 **Project URL** 和 **Publishable key**（旧版叫 anon public key）。前者填 `NEXT_PUBLIC_SUPABASE_URL`，后者填 `NEXT_PUBLIC_SUPABASE_ANON_KEY`；如需删除账户，再复制 service_role/secret key（只放服务端）。
 4. **固定账户模式（推荐个人使用）**：
    - Authentication → Users → Add user，创建一个邮箱 + 密码账户，并勾选自动确认邮箱。
    - 在 Vercel 配置 `FIXED_ACCOUNT_EMAIL`、`FIXED_ACCOUNT_PASSWORD`、`FIXED_ACCOUNT_ACCESS_CODE`。

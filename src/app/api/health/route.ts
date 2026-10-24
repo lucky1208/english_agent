@@ -9,7 +9,7 @@ export async function GET() {
     service: "english-mate",
     time: new Date().toISOString(),
     config: {
-      supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)),
       bailianText: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_BASE_URL && process.env.DASHSCOPE_TEXT_MODEL),
       bailianRealtime: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_REALTIME_URL),
       bailianMemory: isBailianMemoryConfigured(),

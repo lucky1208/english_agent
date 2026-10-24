@@ -21,7 +21,7 @@ Verify RLS with two different users before public traffic.
 
 ## 3. Environment variables
 
-Set these for Preview and Production:
+Set these for Preview and Production. In the new Supabase dashboard, Project URL and Publishable/anon key are under the green **Connect** button or **Settings → API Keys**:
 
 ```
 DASHSCOPE_API_KEY
