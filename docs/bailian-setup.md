@@ -2,6 +2,11 @@
 
 本项目的 AI 能力全部来自阿里云百炼（Model Studio）。文本、实时语音和长期记忆是三个独立接口，可以分别开通；地域、业务空间和 API Key 必须匹配。
 
+> **重要：`{WorkspaceId}` 是占位符，不是字面值。**
+> 在百炼控制台 → 业务空间管理 → 复制 **API Host**（例如 `llm-xxxx.cn-beijing.maas.aliyuncs.com`），
+> 再拼成 `https://llm-xxxx.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime`。
+> 如果 `/api/health` 显示 `bailianRealtimePlaceholder: true`，说明占位符没有替换。
+
 ## 1. 开通与获取 Workspace
 
 1. 登录 [阿里云百炼控制台](https://bailian.console.aliyun.com/)。

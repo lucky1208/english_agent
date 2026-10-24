@@ -152,10 +152,12 @@ npm run dev
 DASHSCOPE_API_KEY=sk-...
 DASHSCOPE_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 DASHSCOPE_TEXT_MODEL=qwen-plus
-DASHSCOPE_REALTIME_URL=https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime
+DASHSCOPE_REALTIME_URL=https://llm-xxxx.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime
 DASHSCOPE_REALTIME_MODEL=qwen-audio-3.1-realtime-plus
 DASHSCOPE_REALTIME_VOICE=longanqian_v3.1
 ```
+
+`llm-xxxx` 只是示例。请到百炼控制台 **业务空间管理** 复制 **API Host**，替换成真实值。不要把 `{WorkspaceId}` 这个占位符原样填进去。
 
 固定账户（可选，个人使用推荐）：
 
@@ -206,8 +208,9 @@ npm run verify       # 依次执行以上四项
 3. API Key → 创建 API Key，关联同一个业务空间。
 4. 模型广场确认 `qwen-plus` 和 `qwen-audio-3.1-realtime-plus` 已开通/可用。
 5. 实时语音：
-   - SDP 地址：`https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime`
-   - 代码会自动追加 `?model=qwen-audio-3.1-realtime-plus`
+   - 业务空间管理 → 复制 **API Host**（形如 `llm-xxxx.cn-beijing.maas.aliyuncs.com`）
+   - SDP 地址：`https://<你的真实 API Host>/api/v1/webrtc/realtime`
+   - 不要把 `{WorkspaceId}` 占位符原样填入；代码会自动追加 `?model=qwen-audio-3.1-realtime-plus`
    - 音色：`longanqian_v3.1`（可在控制台试听）
 6. 长期记忆（可选）：
    - 记忆库 → 创建/使用默认记忆库

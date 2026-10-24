@@ -12,7 +12,13 @@ function hostOf(value: string | undefined) {
   }
 }
 
+function realtimeUrlReady(value: string | undefined) {
+  if (!value || value.includes("{") || value.includes("}")) return false;
+  return hostOf(value) !== "invalid-url";
+}
+
 export async function GET() {
+  const realtimeUrl = process.env.DASHSCOPE_REALTIME_URL?.trim();
   return NextResponse.json({
     ok: true,
     service: "english-mate",
@@ -21,8 +27,9 @@ export async function GET() {
       supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)),
       bailianText: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_BASE_URL && process.env.DASHSCOPE_TEXT_MODEL),
       bailianTextHost: hostOf(process.env.DASHSCOPE_BASE_URL),
-      bailianRealtime: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_REALTIME_URL),
-      bailianRealtimeHost: hostOf(process.env.DASHSCOPE_REALTIME_URL),
+      bailianRealtime: Boolean(process.env.DASHSCOPE_API_KEY && realtimeUrlReady(realtimeUrl)),
+      bailianRealtimeHost: hostOf(realtimeUrl),
+      bailianRealtimePlaceholder: Boolean(realtimeUrl && (realtimeUrl.includes("{") || realtimeUrl.includes("}"))),
       bailianMemory: isBailianMemoryConfigured(),
       rateLimit: Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
       rateLimitMode: process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
