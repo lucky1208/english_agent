@@ -52,6 +52,12 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+  if (!url.pathname.replace(/\/+$/, "").endsWith("/api/v1/webrtc/realtime")) {
+    return NextResponse.json(
+      { error: `DASHSCOPE_REALTIME_URL 路径不正确（当前 ${url.pathname}）。正确路径必须包含 /api/v1/webrtc/realtime。`, host: url.host },
+      { status: 503 },
+    );
+  }
   url.searchParams.set("model", model);
 
   const sdp = await request.text();
