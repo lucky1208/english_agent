@@ -28,6 +28,7 @@ function realtimePathReady(value: string | undefined) {
 
 export async function GET() {
   const realtimeUrl = process.env.DASHSCOPE_REALTIME_URL?.trim();
+  const realtimeKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim();
   return NextResponse.json({
     ok: true,
     service: "english-mate",
@@ -37,7 +38,8 @@ export async function GET() {
       supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)),
       bailianText: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_BASE_URL && process.env.DASHSCOPE_TEXT_MODEL),
       bailianTextHost: hostOf(process.env.DASHSCOPE_BASE_URL),
-      bailianRealtime: Boolean(process.env.DASHSCOPE_API_KEY && realtimeUrlReady(realtimeUrl) && realtimePathReady(realtimeUrl)),
+      bailianRealtime: Boolean(realtimeKey && realtimeUrlReady(realtimeUrl) && realtimePathReady(realtimeUrl)),
+      bailianRealtimeKey: Boolean(process.env.DASHSCOPE_REALTIME_API_KEY),
       bailianRealtimeHost: hostOf(realtimeUrl),
       bailianRealtimePlaceholder: Boolean(realtimeUrl && (realtimeUrl.includes("{") || realtimeUrl.includes("}"))),
       bailianRealtimePathValid: realtimePathReady(realtimeUrl),

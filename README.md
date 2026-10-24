@@ -322,7 +322,7 @@ vercel --prod
 
 不要把 `.env.local` 提交到 Git。`SUPABASE_SERVICE_ROLE_KEY` 只能放在 Vercel 服务端环境变量，绝不能加 `NEXT_PUBLIC_`。
 
-面向中国大陆用户时还需要注意：Vercel 函数默认不在中国大陆，调用北京百炼 endpoint 可能出现跨境延迟或可达性问题。可在 Vercel 项目设置中选择香港/新加坡区域，或把 API 代理部署到阿里云/香港服务器、Vercel 只托管前端。实时语音媒体是浏览器直连百炼，不经过 Vercel，因此受影响的主要是文字接口和 SDP 代理。
+面向中国大陆用户时还需要注意：Vercel 函数默认不在中国大陆，调用北京百炼 endpoint 可能出现跨境延迟或可达性问题。本项目已在 `vercel.json` 中把函数固定到香港 `hkg1`。如果从香港仍无法连接北京 `cn-beijing.maas.aliyuncs.com`（表现为 `UND_ERR_CONNECT_TIMEOUT`），推荐把**实时语音**单独切到百炼 **中国香港（cn-hongkong）** 或 **新加坡（ap-southeast-1）** 业务空间，并配置独立的 `DASHSCOPE_REALTIME_API_KEY`；文字仍可用北京公共 endpoint。实时语音媒体是浏览器直连百炼，不经过 Vercel，因此受影响的主要是文字接口和 SDP 代理。
 
 ## 12. 安全与上线清单
 

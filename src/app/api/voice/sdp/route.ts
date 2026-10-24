@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const rate = await enforceRateLimit(user.id, "voice-sdp", 10);
   if (!rate.allowed) return NextResponse.json({ error: "语音连接请求过于频繁，稍后再试。" }, { status: rate.configurationError ? 503 : 429 });
 
-  const apiKey = process.env.DASHSCOPE_API_KEY?.trim();
+  const apiKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim();
   const model = process.env.DASHSCOPE_REALTIME_MODEL?.trim() || "qwen-audio-3.1-realtime-plus";
   const endpoint = process.env.DASHSCOPE_REALTIME_URL?.trim();
   if (!apiKey || !endpoint) {
