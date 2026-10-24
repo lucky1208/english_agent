@@ -44,14 +44,14 @@ NEXT_PUBLIC_APP_URL
 
 Never expose server secrets with `NEXT_PUBLIC_`.
 
-## 4. Supabase Auth URLs
+## 4. Supabase Auth
 
-Authentication → URL Configuration:
+1. Authentication → Providers → **Anonymous Sign-Ins** → enable.
+2. Authentication → URL Configuration:
+   - Site URL: `https://your-domain.com`
+   - Redirect URLs: `https://your-domain.com/**`, `https://*.vercel.app/**` for previews.
 
-- Site URL: `https://your-domain.com`
-- Redirect URLs: `https://your-domain.com/**`, `https://*.vercel.app/**` for previews.
-
-Configure SMTP for production email confirmation and password reset.
+Anonymous users are cookie-bound. Clearing cookies creates a new guest and loses access to previous records. For a public product, add IP-based limits, CAPTCHA, and account linking/upgrade. SMTP is only needed if you later add email accounts.
 
 ## 5. Deploy
 
@@ -79,8 +79,9 @@ vercel --prod
 ## 6. Smoke test
 
 - `GET /api/health` shows the expected provider configuration flags.
-- Signup, email confirmation, signin, signout.
-- Authenticated text chat and JSON correction.
+- First visit automatically creates an anonymous guest session.
+- Clearing cookies creates a new guest; old data is not accessible.
+- Guest text chat and JSON correction.
 - Refresh history; switch conversations; create a new conversation.
 - Review page shows due items; grading updates counts.
 - Vocabulary add/delete; mistakes mark mastered.

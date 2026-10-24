@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, BookMarked, BookOpen, LogOut, MessageCircle, RefreshCcw, Settings, Sprout } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { BarChart3, BookMarked, BookOpen, MessageCircle, RefreshCcw, Settings, Sprout } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ensureGuestSession, guestAuthErrorMessage, guestLabel } from "@/lib/supabase/guest";
 
 const nav = [
   { href: "/", label: "练习对话", icon: MessageCircle },
@@ -17,50 +18,68 @@ const nav = [
 
 export function AppShell({ children, title }: { children: React.ReactNode; title: string }) {
   const path = usePathname();
-  const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [userLabel, setUserLabel] = useState("");
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState("");
 
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     try {
       const supabase = createSupabaseBrowserClient();
-      supabase.auth.getUser().then(({ data }) => {
-        setEmail(data.user?.email ?? "");
-        setAuthReady(true);
-        if (!data.user) router.replace("/login");
-      }).catch(() => { setAuthReady(true); router.replace("/login"); });
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-        setEmail(session?.user?.email ?? "");
-        if (!session?.user) router.replace("/login");
+      ensureGuestSession(supabase)
+        .then((user) => {
+          setUserLabel(guestLabel(user));
+          setAuthError("");
+        })
+        .catch((error) => {
+          setAuthError(guestAuthErrorMessage(error));
+        })
+        .finally(() => {
+          setAuthReady(true);
+        });
+
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setUserLabel(guestLabel(session.user));
+          setAuthError("");
+        }
       });
-      return () => listener.subscription.unsubscribe();
+      unsubscribe = () => data.subscription.unsubscribe();
     } catch (error) {
+      setAuthError(guestAuthErrorMessage(error));
       setAuthReady(true);
-      setAuthError(error instanceof Error ? error.message : "请配置 Supabase 环境变量。");
     }
-  }, [router]);
+    return () => unsubscribe?.();
+  }, []);
 
-  async function signOut() {
-    try {
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
-    } catch {
-      // The login page will show the configuration error if env vars are missing.
-    }
-    router.replace("/login");
+  if (!authReady || !userLabel) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="brand"><span className="brand-mark"><Sprout size={18} /></span><span>English Mate</span></div>
+          <p className="page-lede" style={{ marginTop: 20 }}>
+            {authError || "正在创建游客会话…"}
+          </p>
+          <p className="inline-muted" style={{ marginTop: 12 }}>
+            免登录模式会自动创建一个 Supabase 匿名用户。请在 Supabase 开启 Anonymous Sign-Ins，并在 Vercel 配置 Supabase URL 与 anon key。
+          </p>
+          <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+            <a className="btn btn-primary" href="/api/health" target="_blank" rel="noreferrer">检查配置状态</a>
+            <Link className="btn" href="/privacy">隐私政策</Link>
+          </div>
+        </div>
+      </div>
+    );
   }
-
-  if (!authReady || !email) return <div className="auth-wrap"><div className="auth-card"><div className="brand"><span className="brand-mark"><Sprout size={18}/></span><span>English Mate</span></div><p className="page-lede" style={{ marginTop: 20 }}>{authError ? `配置提示：${authError}` : "正在检查登录状态…"}</p><p className="inline-muted" style={{ marginTop: 12 }}>请在 .env.local 中配置 Supabase URL 和 anon key，然后重启开发服务器。</p><Link className="btn btn-primary" style={{ marginTop: 10 }} href="/login">前往登录</Link></div></div>;
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <Link href="/" className="brand"><span className="brand-mark"><Sprout size={18}/></span><span className="brand-text">English Mate</span></Link>
+      <Link href="/" className="brand"><span className="brand-mark"><Sprout size={18} /></span><span className="brand-text">English Mate</span></Link>
       <div style={{ width: "100%" }}><div className="nav-label">WORKSPACE</div>{nav.map((item) => { const Icon = item.icon; const active = path === item.href; return <Link className={`nav-link ${active ? "active" : ""}`} key={item.href} href={item.href} title={item.label}><Icon size={18}/><span className="nav-text">{item.label}</span></Link>; })}</div>
       <div className="sidebar-bottom"><strong>Small steps, every day.</strong><br/>每一次真实对话，都会变成你的英语进步。</div>
     </aside>
     <div className="main-column">
-      <header className="topbar"><div><div className="topbar-title">{title}</div><div className="topbar-subtitle">{email}</div></div><button className="btn" onClick={signOut}><LogOut size={15}/>退出</button></header>
+      <header className="topbar"><div><div className="topbar-title">{title}</div><div className="topbar-subtitle">{userLabel}</div></div><span className="pill">{userLabel}</span></header>
       {children}
     </div>
   </div>;

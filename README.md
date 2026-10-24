@@ -6,7 +6,7 @@
 
 ## 1. 功能
 
-- Supabase 邮箱注册 / 登录，所有用户数据由 PostgreSQL RLS 隔离。
+- 免登录游客模式：首次访问自动创建 Supabase 匿名用户，所有数据仍由 PostgreSQL RLS 按用户隔离。
 - 百炼 OpenAI 兼容文本接口（默认 `qwen-plus`）生成对话、纠错和词汇建议。
 - 实时语音：浏览器 WebRTC 直连百炼，服务端只代理 SDP 鉴权，不经过 Vercel 转发音频。
 - 语音实时字幕、打断、静音；通话结束后保存用户和 AI 的转写文本。
@@ -40,14 +40,14 @@
 
 - 文本模型不能可靠判断发音。语音纠错基于 ASR 转写，主要覆盖语法、用词、搭配和自然度，不应宣传“发音评分”。
 - 真实语音端到端验证需要你自己的百炼账户、麦克风、HTTPS 域名和模型权限，本地无密钥无法代替。
-- 正式公开产品还需要支付/配额、邮件找回密码、监控告警、备份、成本上限和法务审查。
+- 正式公开产品还需要支付/配额、游客账号升级/绑定、监控告警、备份、成本上限和法务审查。匿名账号与浏览器 cookie 绑定，清除 cookie 后会变成新游客，因此公开产品还需要按 IP 限流或验证码。
 
 ## 3. 技术架构
 
 ```text
 Browser (Next.js App Router + WebRTC)
   │
-  ├─ Supabase Auth cookie ──────────────► Supabase Auth
+  ├─ Anonymous Supabase Auth cookie ────► Supabase Auth
   │
   ├─ /api/chat ─────────────────────────► Next.js Route Handler
   │                                         ├─ Supabase PostgreSQL (RLS)
@@ -90,7 +90,7 @@ Browser (Next.js App Router + WebRTC)
 english-ai-tutor/
 ├─ src/app/
 │  ├─ page.tsx                     # 主对话页：文字 + 实时语音 + 会话切换
-│  ├─ login/page.tsx               # Supabase 登录 / 注册
+│  ├─ login/page.tsx               # 旧链接兼容：重定向首页；登录页已关闭
 │  ├─ review/page.tsx              # 间隔复习
 │  ├─ mistakes/page.tsx            # 错题本
 │  ├─ vocabulary/page.tsx          # 词汇本
@@ -113,7 +113,7 @@ english-ai-tutor/
 │  ├─ learner-context.ts           # 档案 + 错题 + 到期词汇汇总
 │  ├─ review.ts                    # 纯函数 SRS 调度
 │  ├─ rate-limit.ts                # Upstash / 本地限流
-│  └─ supabase/                    # 浏览器 / 服务端 / 管理端客户端
+│  └─ supabase/                    # 浏览器 / 服务端 / 管理端 / 游客会话客户端
 ├─ supabase/schema.sql             # 数据表、索引、触发器、RLS
 ├─ docs/                           # 架构、部署、安全、百炼配置
 └─ tests/                          # 单元测试
@@ -133,11 +133,12 @@ npm run dev
 
 1. 新建 Supabase 项目。
 2. 打开 SQL Editor，执行 `supabase/schema.sql`。
-3. Project Settings → API，复制 URL、anon key；如需“删除登录账户”，再复制 service_role key（只放服务端）。
-4. Authentication → URL Configuration：
+3. Project Settings → API，复制 URL、anon key；如需“删除匿名账户”，再复制 service_role key（只放服务端）。
+4. **Authentication → Providers → Anonymous Sign-Ins → 开启**。这是免登录模式必须的一步。
+5. Authentication → URL Configuration：
    - Site URL：`http://localhost:3000`
    - Redirect URLs：`http://localhost:3000/**`、Vercel Preview 域名和正式域名。
-5. 生产环境建议开启邮箱确认，并配置自定义 SMTP。
+6. 可选：以后要支持邮箱账号升级时，再开启邮箱确认并配置 SMTP。
 
 ### 6.2 阿里云百炼
 
@@ -271,10 +272,10 @@ npm run verify       # 依次执行以上四项
 2. Vercel → Add New → Project → 导入仓库。
 3. Framework Preset 选择 Next.js，Node.js 版本 20 或 22。
 4. 在 Preview 和 Production 分别设置 `.env.example` 中的变量。
-5. 在 Supabase Auth 中配置 Site URL 和 Redirect URLs 为 Vercel 域名。
+5. 在 Supabase Auth 中开启 Anonymous Sign-Ins，并配置 Site URL / Redirect URLs 为 Vercel 域名。
 6. 在 Supabase SQL Editor 执行最新 `supabase/schema.sql`（已有库也会幂等升级）。
 7. 创建 Upstash Redis，填入 REST URL / Token。
-8. Deploy Preview，逐项验证：注册、登录、文字聊天、纠错入库、词汇、复习、语音 SDP、语音转写、数据导出、删除记忆。
+8. Deploy Preview，逐项验证：自动游客会话、文字聊天、纠错入库、词汇、复习、语音 SDP、语音转写、数据导出、删除记忆。
 9. 绑定自定义域名并开启 HTTPS（麦克风必须安全上下文）。
 10. 检查 Vercel 日志没有密钥、完整音频或不必要的个人数据，再转 Production。
 
@@ -311,7 +312,7 @@ vercel --prod
 - [ ] 生产环境配置 Upstash；未配置时 AI 接口 fail closed。
 - [ ] 百炼和 Supabase 设置费用/配额告警。
 - [ ] 不保存原始音频；隐私页明确说明音频会发送给百炼处理。
-- [ ] 配置邮箱确认、密码重置、会话过期和登出。
+- [ ] 配置匿名会话 cookie、会话过期和数据恢复策略；公开产品增加 IP 限流、验证码和账号升级/绑定。
 - [ ] 完成隐私政策、服务条款、适龄政策和目标法域合规审查；替换页面中的联系信息占位符。
 - [ ] 配置错误监控、数据库备份、恢复演练和日志脱敏。
 - [ ] 限制 Vercel Function 执行时间；实时音频不经过 serverless 长连接。
@@ -319,7 +320,7 @@ vercel --prod
 
 ## 13. 公开上线前建议继续做
 
-1. 邮件找回密码 / 更换邮箱的完整回调路由。
+1. 游客账号升级/绑定邮箱或第三方登录的完整回调路由，避免清除 cookie 后丢失学习记录。
 2. 每次会话结束生成学习摘要（写入 `learning_sessions`），并在复习页展示周报。
 3. 基于音频置信度或专用发音评测模型做发音反馈；不要把文本纠错包装成发音评分。
 4. 对话删除、单条消息删除、保留期限和自动清理任务。

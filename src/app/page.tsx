@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Sparkles, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ensureGuestSession, guestAuthErrorMessage } from "@/lib/supabase/guest";
 
 type Correction = {
   originalText: string;
@@ -210,16 +211,16 @@ export default function HomePage() {
   useEffect(() => {
     try {
       const supabase = createSupabaseBrowserClient();
-      supabase.auth.getUser().then(({ data }) => {
-        if (data.user) {
+      ensureGuestSession(supabase)
+        .then(() => {
           void loadConversations();
           void loadSideData();
-        }
-      }).catch(() => {
-        setError("无法读取登录状态，请检查 Supabase 配置。");
-      });
+        })
+        .catch((e) => {
+          setError(guestAuthErrorMessage(e));
+        });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "请先配置 Supabase 环境变量。");
+      setError(guestAuthErrorMessage(e));
     }
   }, [loadConversations, loadSideData]);
 

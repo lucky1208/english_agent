@@ -3,11 +3,21 @@
 ## Runtime shape
 
 - Next.js App Router on Vercel.
-- Supabase Auth with cookie-based SSR sessions.
+- Supabase Auth with cookie-based SSR sessions. The UI no longer shows a login form; first visit calls `signInAnonymously()` and reuses the anonymous session from cookies. All API routes still require a valid Supabase JWT and RLS still isolates users.
 - Supabase PostgreSQL for all structured learning data. RLS is enabled on every user-owned table.
 - Bailian OpenAI-compatible text API for text coaching and structured correction.
 - Bailian Qwen-Audio-Realtime over WebRTC for live voice. The browser talks to Bailian directly for media; Vercel only proxies the SDP exchange.
 - Bailian Memory API is an optional semantic layer. It is never the source of truth.
+
+## Guest session flow
+
+1. `AppShell` and the home page call `ensureGuestSession()`.
+2. If `auth.getUser()` already returns a session, that user is reused.
+3. Otherwise the browser calls `supabase.auth.signInAnonymously()`.
+4. The anonymous user gets a normal Supabase JWT and a `profiles` row via the existing trigger.
+5. `/login` redirects to `/`; there is no email/password UI.
+
+Anonymous identity is cookie-bound: clearing cookies creates a new guest and cannot recover the old records. Public deployments should add IP-based limits, CAPTCHA, and an account-upgrade flow.
 
 ## Text request flow
 

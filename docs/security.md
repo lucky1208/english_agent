@@ -15,7 +15,9 @@
 - [ ] Supabase RLS is enabled for profiles, conversations, messages, corrections, vocabulary, review_records, learning_sessions, and user_memory_refs.
 - [ ] Two-account isolation test passes.
 - [ ] Supabase Auth redirect URLs contain only intended domains.
-- [ ] Email confirmation and session expiry are configured for production.
+- [ ] Anonymous Sign-Ins are enabled; session expiry is configured for production.
+- [ ] Public deployments add IP-based rate limiting/CAPTCHA because a guest can clear cookies and create a new anonymous identity to bypass per-user limits.
+- [ ] Add account linking/upgrade if users need to keep data across devices.
 
 ## Input and model safety
 

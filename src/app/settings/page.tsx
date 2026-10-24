@@ -74,9 +74,13 @@ export default function SettingsPage() {
         setMessage(`账户与学习数据已删除${data.deletedMemories ? `，并清理了 ${data.deletedMemories} 条长期记忆` : ""}。`);
       }
       if (data.authDeleted) {
-        const supabase = createSupabaseBrowserClient();
-        await supabase.auth.signOut();
-        router.replace("/login");
+        try {
+          const supabase = createSupabaseBrowserClient();
+          await supabase.auth.signOut();
+        } catch {
+          // The session is already invalid after server-side account deletion.
+        }
+        router.replace("/");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "删除失败");
