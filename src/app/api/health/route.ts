@@ -32,6 +32,7 @@ export async function GET() {
     ok: true,
     service: "english-mate",
     time: new Date().toISOString(),
+    deploymentRegion: process.env.VERCEL_REGION || null,
     config: {
       supabase: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)),
       bailianText: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_BASE_URL && process.env.DASHSCOPE_TEXT_MODEL),
