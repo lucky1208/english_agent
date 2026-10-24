@@ -186,7 +186,7 @@ curl -X POST "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v2/apps/mem
 | 语音无声音 | 浏览器自动播放限制 | 点击页面音频控件；保持用户手势触发 |
 | 语音无法建立 | 网络限制 UDP/WebRTC | 换网络；后续可配置 TURN |
 | 记忆为空 | 未配置记忆 API 或模型未抽取 | 检查环境变量；多完成几轮对话后再查 |
-| 生产环境 503 | 未配置 Upstash | 配置 `UPSTASH_REDIS_REST_URL/TOKEN` |
+| 生产环境 503 | 未配置 Upstash 且没有固定账户 | 配置 Upstash，或设置 `FIXED_ACCOUNT_EMAIL` 使用个人内存回退 |
 
 ## 7. 费用与配额
 

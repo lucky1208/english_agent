@@ -28,7 +28,8 @@
 - [ ] Memory/profile text is marked as untrusted context in prompts.
 - [ ] No user-controlled URLs are fetched by the server.
 - [ ] Provider endpoints are fixed environment variables (no SSRF).
-- [ ] Rate limits are active in production; AI routes fail closed without Upstash.
+- [ ] Public multi-user production configures Upstash. The fixed-account personal mode falls back to per-instance memory limits; do not rely on that for public traffic.
+- [ ] AI routes fail closed without Upstash unless `FIXED_ACCOUNT_EMAIL` is set for a single-user deployment.
 
 ## Data protection
 

@@ -14,6 +14,11 @@ export async function GET() {
       bailianRealtime: Boolean(process.env.DASHSCOPE_API_KEY && process.env.DASHSCOPE_REALTIME_URL),
       bailianMemory: isBailianMemoryConfigured(),
       rateLimit: Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+      rateLimitMode: process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+        ? "upstash"
+        : process.env.FIXED_ACCOUNT_EMAIL
+          ? "memory-fallback"
+          : "none",
       authAccountDeletion: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
       fixedAccount: Boolean(process.env.FIXED_ACCOUNT_EMAIL && process.env.FIXED_ACCOUNT_PASSWORD),
       fixedAccountAccessCode: Boolean(process.env.FIXED_ACCOUNT_ACCESS_CODE),

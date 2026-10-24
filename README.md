@@ -182,7 +182,7 @@ UPSTASH_REDIS_REST_URL=...
 UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-未配置 Upstash 时，生产模式会拒绝 AI 接口（fail closed），开发模式使用进程内限流。
+未配置 Upstash 时，公开多用户生产环境会拒绝 AI 接口（fail closed）。配置了 `FIXED_ACCOUNT_EMAIL` 的个人模式会退回单实例内存限流，适合自用，但不适合公开流量。
 
 ### 6.3 启动与检查
 
@@ -326,7 +326,7 @@ vercel --prod
 - [ ] `DASHSCOPE_API_KEY`、`BAILIAN_MEMORY_API_KEY`、`SUPABASE_SERVICE_ROLE_KEY` 只存在服务端。
 - [ ] Supabase 所有用户表启用 RLS，并用两个测试账号验证 A 不能读写 B 的数据。
 - [ ] 所有 API 用 `auth.getUser()` 鉴权，绝不信任前端传来的 `user_id`。
-- [ ] 生产环境配置 Upstash；未配置时 AI 接口 fail closed。
+- [ ] 公开多用户生产环境配置 Upstash；固定账户个人模式可使用内存回退，但不要用于公开流量。
 - [ ] 百炼和 Supabase 设置费用/配额告警。
 - [ ] 不保存原始音频；隐私页明确说明音频会发送给百炼处理。
 - [ ] 固定账户模式必须配置 `FIXED_ACCOUNT_ACCESS_CODE`；不要把密码或访问码写进前端。
