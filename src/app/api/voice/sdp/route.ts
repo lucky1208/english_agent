@@ -9,6 +9,16 @@ function normalizeSdp(sdp: string) {
   return `${sdp.trim().replace(/\r?\n/g, "\r\n")}\r\n`;
 }
 
+function networkFailureCode(error: unknown) {
+  if (error instanceof Error) {
+    const cause = (error as Error & { cause?: { code?: string } }).cause;
+    if (cause?.code) return cause.code;
+    if (error.name === "TimeoutError" || error.name === "AbortError") return "TIMEOUT";
+    return error.message.slice(0, 80);
+  }
+  return "UNKNOWN";
+}
+
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -26,6 +36,23 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+  if (endpoint.includes("{") || endpoint.includes("}")) {
+    return NextResponse.json(
+      { error: "DASHSCOPE_REALTIME_URL 仍包含 {WorkspaceId} 占位符。请替换成百炼控制台里的真实业务空间 ID。" },
+      { status: 503 },
+    );
+  }
+
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return NextResponse.json(
+      { error: "DASHSCOPE_REALTIME_URL 不是有效 URL。正确格式：https://{真实 WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/webrtc/realtime" },
+      { status: 503 },
+    );
+  }
+  url.searchParams.set("model", model);
 
   const sdp = await request.text();
   if (!sdp || sdp.length > 250_000 || !sdp.includes("v=0")) {
@@ -33,8 +60,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const url = new URL(endpoint);
-    url.searchParams.set("model", model);
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -48,22 +73,32 @@ export async function POST(request: Request) {
     });
     const answer = await response.text();
     if (!response.ok) {
-      console.error("Bailian SDP exchange failed", response.status, answer.slice(0, 200));
+      console.error("Bailian SDP exchange failed", url.host, response.status, answer.slice(0, 200));
       return NextResponse.json(
-        { error: `百炼 SDP 协商失败（HTTP ${response.status}）。请核对地域、模型权限、Workspace endpoint 与 API Key。` },
+        { error: `百炼 SDP 协商失败（HTTP ${response.status}）。请核对地域、模型权限、Workspace endpoint 与 API Key。`, host: url.host },
         { status: 502 },
       );
     }
     if (!answer.trim().startsWith("v=0")) {
-      console.error("Bailian SDP answer was not valid SDP", answer.slice(0, 160));
-      return NextResponse.json({ error: "百炼返回了非 SDP 内容，请检查 endpoint 是否为 /api/v1/webrtc/realtime。" }, { status: 502 });
+      console.error("Bailian SDP answer was not valid SDP", url.host, answer.slice(0, 160));
+      return NextResponse.json({ error: "百炼返回了非 SDP 内容，请检查 endpoint 是否为 /api/v1/webrtc/realtime。", host: url.host }, { status: 502 });
     }
     return new Response(normalizeSdp(answer), {
       status: 200,
       headers: { "Content-Type": "application/sdp", "Cache-Control": "no-store" },
     });
   } catch (error) {
-    console.error("SDP proxy error", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "无法连接百炼实时语音服务。请检查 endpoint 与网络配置。" }, { status: 502 });
+    const code = networkFailureCode(error);
+    console.error("SDP proxy network error", url.host, code);
+    const hint = code === "ENOTFOUND"
+      ? "域名解析失败，endpoint 可能写错。"
+      : code === "TIMEOUT"
+        ? "连接超时，可能是 Vercel 所在区域无法访问该百炼地域。"
+        : "请检查 endpoint、地域和网络配置。";
+    return NextResponse.json({
+      error: `无法连接百炼实时语音服务（${code}）。${hint}`,
+      host: url.host,
+      detail: code,
+    }, { status: 502 });
   }
 }
