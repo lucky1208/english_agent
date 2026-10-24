@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Sparkles, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { CoachStage, type CoachState } from "@/components/coach-avatar";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ensureSession, sessionAuthErrorMessage } from "@/lib/supabase/session";
 
@@ -113,6 +114,8 @@ export default function HomePage() {
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceStarting, setVoiceStarting] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("语音模式：等待开始");
+  const [coachState, setCoachState] = useState<CoachState>("idle");
+  const [pauseMs, setPauseMs] = useState(1500);
   const [micMuted, setMicMuted] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [liveUser, setLiveUser] = useState("");
@@ -130,6 +133,7 @@ export default function HomePage() {
   const sessionReadyRef = useRef(false);
   const voiceSessionIdRef = useRef(0);
   const liveAssistantRef = useRef("");
+  const speakingTimerRef = useRef<number | null>(null);
 
   const loadSideData = useCallback(async () => {
     const [profileRes, reviewRes, correctionsRes, vocabularyRes] = await Promise.all([
@@ -166,8 +170,35 @@ export default function HomePage() {
     setMessages(data.messages ?? []);
   }, []);
 
+  function clearSpeakingTimer() {
+    if (speakingTimerRef.current) {
+      window.clearTimeout(speakingTimerRef.current);
+      speakingTimerRef.current = null;
+    }
+  }
+
+  function markSpeakingBriefly() {
+    clearSpeakingTimer();
+    setCoachState("speaking");
+    speakingTimerRef.current = window.setTimeout(() => {
+      setCoachState("idle");
+      speakingTimerRef.current = null;
+    }, 2600);
+  }
+
+  function updatePauseMs(value: number) {
+    const next = Math.min(4000, Math.max(500, value));
+    setPauseMs(next);
+    try {
+      window.localStorage.setItem("english-mate-pause-ms", String(next));
+    } catch {
+      // Storage may be unavailable in private mode.
+    }
+  }
+
   const stopVoice = useCallback(() => {
     voiceSessionIdRef.current += 1;
+    clearSpeakingTimer();
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     channelsRef.current.forEach((channel) => {
@@ -188,6 +219,7 @@ export default function HomePage() {
     setAudioBlocked(false);
     setLiveUser("");
     setLiveAssistant("");
+    setCoachState("idle");
     setVoiceStatus("语音已结束");
   }, []);
 
@@ -227,6 +259,15 @@ export default function HomePage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, liveUser, liveAssistant]);
+
+  useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem("english-mate-pause-ms"));
+      if (Number.isFinite(stored) && stored >= 500 && stored <= 4000) setPauseMs(stored);
+    } catch {
+      // Keep the default when storage is unavailable.
+    }
+  }, []);
 
   useEffect(() => () => stopVoice(), [stopVoice]);
 
@@ -273,6 +314,7 @@ export default function HomePage() {
     setText("");
     setError("");
     setBusy(true);
+    setCoachState("thinking");
     const tempId = crypto.randomUUID();
     setMessages((current) => [...current, { id: tempId, role: "user", content }]);
     try {
@@ -308,11 +350,14 @@ export default function HomePage() {
             ? [{ id: crypto.randomUUID(), role: "assistant" as const, content: data.result.reply, metadata: { correction: data.result.correction, vocabulary: data.result.vocabulary } }]
             : []),
       ]);
+      if (voiceActive) setCoachState("listening");
+      else markSpeakingBriefly();
       void loadSideData();
     } catch (e) {
       setMessages((current) => current.filter((message) => message.id !== tempId));
       setText(content);
       setError(e instanceof Error ? e.message : "发送失败，请稍后重试。");
+      setCoachState("idle");
     } finally {
       setBusy(false);
     }
@@ -346,6 +391,8 @@ export default function HomePage() {
     setVoiceStarting(true);
     setVoiceStatus("正在请求麦克风权限…");
     setError("");
+    setCoachState("connecting");
+    clearSpeakingTimer();
     setLiveUser("");
     setLiveAssistant("");
     setAudioBlocked(false);
@@ -414,7 +461,7 @@ export default function HomePage() {
             input_audio_transcription: { language: "en" },
             output_audio: { language: "en" },
             max_history_turns: 20,
-            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: 700 },
+            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: Math.min(4000, Math.max(500, pauseMs)) },
           },
         }));
         setVoiceStatus("会话已创建，正在初始化英语教练…");
@@ -452,29 +499,34 @@ export default function HomePage() {
               setError("没有可用的麦克风轨道。");
               setVoiceStatus("麦克风不可用");
               stopVoice();
+              setCoachState("error");
               return;
             }
             void sender.replaceTrack(localTrack).then(() => {
               if (!isCurrent()) return;
               setVoiceActive(true);
               setVoiceStarting(false);
+              setCoachState("listening");
               setVoiceStatus("正在实时对话 · 直接说英语即可");
             }).catch((replaceError: unknown) => {
               if (!isCurrent()) return;
               setError(replaceError instanceof Error ? replaceError.message : "无法开启麦克风上行。");
               stopVoice();
+              setCoachState("error");
             });
             return;
           }
 
           if (type === "input_audio_buffer.speech_started") {
             setVoiceStatus("正在聆听…");
+            setCoachState("listening");
             setLiveUser("");
             return;
           }
 
           if (type === "input_audio_buffer.speech_stopped") {
             setVoiceStatus("已听到，正在理解…");
+            setCoachState("thinking");
             return;
           }
 
@@ -500,6 +552,7 @@ export default function HomePage() {
 
           if (type === "response.created") {
             setVoiceStatus("AI 正在回答…");
+            setCoachState("thinking");
             setLiveAssistant("");
             liveAssistantRef.current = "";
             return;
@@ -508,6 +561,7 @@ export default function HomePage() {
           if (type === "response.audio_transcript.delta" || type === "response.text.delta") {
             const delta = typeof realtimeEvent.delta === "string" ? realtimeEvent.delta : "";
             if (!delta) return;
+            setCoachState("speaking");
             const next = `${liveAssistantRef.current}${delta}`;
             liveAssistantRef.current = next;
             setLiveAssistant(next);
@@ -548,6 +602,7 @@ export default function HomePage() {
               setLiveAssistant("");
             }
             setVoiceStatus("正在聆听… 你可以继续说");
+            setCoachState("listening");
             return;
           }
 
@@ -556,6 +611,7 @@ export default function HomePage() {
             const message = errorObject && typeof errorObject.message === "string" ? errorObject.message : "实时语音模型返回错误。";
             const errorType = errorObject && typeof errorObject.type === "string" ? errorObject.type : "";
             setError(message);
+            setCoachState("error");
             if (errorType === "server_error") setVoiceStatus("语音连接发生错误");
             return;
           }
@@ -591,6 +647,7 @@ export default function HomePage() {
         } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected" || pc.connectionState === "closed") {
           setError("语音连接中断，请重新开始。");
           stopVoice();
+          setCoachState("error");
         }
       };
 
@@ -618,12 +675,14 @@ export default function HomePage() {
         if (!isCurrent() || sessionReadyRef.current) return;
         setError("实时语音初始化超时，请检查模型权限和网络后重试。");
         stopVoice();
+        setCoachState("error");
         setVoiceStatus("语音初始化超时");
       }, 30_000);
     } catch (e) {
       if (!isCurrent()) return;
       stopVoice();
       setError(e instanceof Error ? e.message : "无法启动实时语音。");
+      setCoachState("error");
       setVoiceStatus("语音连接失败");
     }
   }
@@ -667,6 +726,8 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+
+            <CoachStage state={coachState} pauseMs={pauseMs} />
 
             <div className="chat-list">
               {messages.length === 0 && (
@@ -804,6 +865,29 @@ export default function HomePage() {
               <button className="btn" style={{ width: "100%" }} onClick={saveProfile} disabled={savingProfile}>
                 {savingProfile ? "保存中…" : "保存学习档案"}
               </button>
+            </section>
+
+            <section className="side-card">
+              <h3><Mic size={15} /> 语音设置</h3>
+              <label className="field-label" htmlFor="pauseMs">AI 等待停顿时间</label>
+              <input
+                id="pauseMs"
+                className="range"
+                type="range"
+                min={500}
+                max={4000}
+                step={100}
+                value={pauseMs}
+                onChange={(e) => updatePauseMs(Number(e.target.value))}
+              />
+              <div className="pause-row">
+                <span className="inline-muted">更快接话</span>
+                <strong className="pause-value">{(pauseMs / 1000).toFixed(1)} 秒</strong>
+                <span className="inline-muted">更多思考</span>
+              </div>
+              <p className="inline-muted" style={{ margin: "8px 0 0" }}>
+                停顿超过这个时间 AI 才会接话。建议 1.5–2.5 秒；修改后重新开始语音生效。
+              </p>
             </section>
 
             <section className="side-card">
