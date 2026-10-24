@@ -23,6 +23,10 @@ function allowAttempt(key: string) {
 }
 
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.json({ configured: false, error: "Supabase 环境变量未配置。" }, { status: 503 });
+  }
+
   const email = process.env.FIXED_ACCOUNT_EMAIL?.trim();
   const password = process.env.FIXED_ACCOUNT_PASSWORD;
   if (!email || !password) {
