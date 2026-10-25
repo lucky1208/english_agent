@@ -257,3 +257,16 @@ code { background: #eef3ef; border-radius: 5px; padding: 2px 6px; font-size: 12p
 .history-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 13px; font-weight: 650; }
 .history-meta { color: var(--muted); font-size: 11px; }
 .history-item .btn { flex: none; }
+
+/* Pronunciation rows */
+.review-front-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.review-front-row .review-front { flex: 1; min-width: 0; }
+.review-example-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; }
+.review-example-row .review-example { flex: 1; min-width: 0; margin-top: 0; }
+.review-example-row .btn { flex: none; }
+.record-example-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.record-example-row .record-example { flex: 1; min-width: 0; margin-top: 0; }
+.record-example-row .btn { flex: none; }
+.record-correct-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 5px; }
+.record-correct-row .record-title { flex: 1; min-width: 0; margin: 0; }
+.record-correct-row .btn { flex: none; }

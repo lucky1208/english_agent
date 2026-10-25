@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, CheckCircle2, RefreshCcw } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, RefreshCcw, Volume2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { formatReviewInterval, scheduleReview } from "@/lib/review";
 
@@ -29,6 +29,15 @@ type ReviewData = {
     reviewedToday: number;
   };
 };
+
+function speak(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window) || !text.trim()) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 0.9;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
 
 const QUALITY_OPTIONS = [
   { quality: 1, label: "忘了", hint: "重新开始" },
@@ -159,7 +168,15 @@ export default function ReviewPage() {
               </div>
               <div className="review-prompt">
                 <div className="review-kicker">{item.itemType === "vocabulary" ? "这个单词/短语是什么意思？" : "这句话哪里不自然？"}</div>
-                <div className="review-front">{item.front}</div>
+                <div className="review-front-row">
+                  <div className="review-front">{item.front}</div>
+                  {item.itemType === "vocabulary" && (
+                    <button className="btn btn-small" type="button" aria-label="朗读单词" onClick={() => speak(item.front)}>
+                      <Volume2 size={14} />
+                      发音
+                    </button>
+                  )}
+                </div>
                 {item.errorTypes.length > 0 && (
                   <div className="review-tags">
                     {item.errorTypes.map((type) => <span className="pill" key={type}>{type}</span>)}
@@ -176,7 +193,15 @@ export default function ReviewPage() {
                   <div className="review-answer">
                     <div className="review-kicker">{item.itemType === "vocabulary" ? "释义" : "更自然的表达"}</div>
                     <div className="review-back">{item.back || "还没有记录释义。"}</div>
-                    {item.example && <div className="review-example">Example: {item.example}</div>}
+                    {item.example && (
+                      <div className="review-example-row">
+                        <div className="review-example">Example: {item.example}</div>
+                        <button className="btn btn-small" type="button" aria-label="朗读例句" onClick={() => speak(item.example)}>
+                          <Volume2 size={14} />
+                          发音
+                        </button>
+                      </div>
+                    )}
                     {item.explanationZh && <div className="review-explanation">{item.explanationZh}</div>}
                   </div>
                   <div className="review-grades">

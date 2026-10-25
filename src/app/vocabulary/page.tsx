@@ -113,6 +113,7 @@ export default function VocabularyPage() {
                   <span className="pill">掌握 {item.mastery_level}/5</span>
                   <button className="btn btn-small" type="button" aria-label={`朗读 ${item.word}`} onClick={() => speak(item.word)}>
                     <Volume2 size={14} />
+                    发音
                   </button>
                   <button className="btn btn-small" aria-label={`删除 ${item.word}`} onClick={() => void remove(item.id)}>
                     <Trash2 size={14} />
@@ -120,7 +121,15 @@ export default function VocabularyPage() {
                 </div>
               </div>
               <div className="record-body">{item.meaning || "还没有记录释义。"}</div>
-              {item.example && <div className="record-example">{item.example}</div>}
+              {item.example && (
+                <div className="record-example-row">
+                  <div className="record-example">{item.example}</div>
+                  <button className="btn btn-small" type="button" aria-label="朗读例句" onClick={() => speak(item.example)}>
+                    <Volume2 size={14} />
+                    发音
+                  </button>
+                </div>
+              )}
               <div className="inline-muted" style={{ marginTop: 8 }}>
                 {item.next_review_at ? `下次复习：${new Date(item.next_review_at).toLocaleDateString()}` : "等待首次复习"}
               </div>
