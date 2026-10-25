@@ -6,6 +6,7 @@ import { getBailianClient, getTextModel } from "@/lib/ai/client";
 import { parseTutorResult } from "@/lib/ai/schema";
 import { buildTutorMessages } from "@/lib/ai/chat-messages";
 import { formatLearnerContext, loadLearnerContext } from "@/lib/learner-context";
+import { summarizeConversation } from "@/lib/ai/summarize";
 import { searchBailianMemory, addBailianMemory } from "@/lib/memory/bailian";
 
 export const runtime = "nodejs";
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(12),
-      loadLearnerContext(supabase, user.id),
+      loadLearnerContext(supabase, user.id, conversationId),
       searchBailianMemory(user.id, input.data.message),
     ]);
 
@@ -134,10 +135,17 @@ export async function POST(request: Request) {
 
     await supabase.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId).eq("user_id", user.id);
     after(async () => {
+      const summaryConversationId = conversationId;
       await addBailianMemory(user.id, [
         { role: "user", content: input.data.message },
         { role: "assistant", content: result.reply },
       ]);
+      if (!summaryConversationId) return;
+      try {
+        await summarizeConversation(supabase, user.id, summaryConversationId);
+      } catch (error) {
+        console.error("conversation summary failed", error instanceof Error ? error.message : "unknown");
+      }
     });
 
     return NextResponse.json({

@@ -258,7 +258,7 @@ export default function HomePage() {
       const response = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ level: profile.level, goals: profile.goals, preferences: profile.preferences }),
+        body: JSON.stringify({ display_name: profile.display_name ?? "", level: profile.level, goals: profile.goals, preferences: profile.preferences }),
       });
       const data = (await response.json()) as { error?: string; profile?: Profile };
       if (!response.ok) throw new Error(data.error || "无法保存档案");
@@ -842,6 +842,15 @@ export default function HomePage() {
 
               <section className="modal-section">
                 <h3><BookOpen size={14} /> 学习档案</h3>
+                <label className="field-label" htmlFor="displayName">你的名字</label>
+                <input
+                  id="displayName"
+                  className="field"
+                  value={profile.display_name ?? ""}
+                  onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                  placeholder="AI 会这样称呼你"
+                  maxLength={60}
+                />
                 <label className="field-label" htmlFor="level">英语水平</label>
                 <select id="level" className="field" value={profile.level} onChange={(e) => setProfile({ ...profile, level: e.target.value })}>
                   <option value="A1">A1 · 入门</option>

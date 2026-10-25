@@ -6,6 +6,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const ProfileSchema = z.object({
+  display_name: z.string().trim().max(60).optional(),
   level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
   goals: z.string().trim().max(1000),
   preferences: z.string().trim().max(1000),

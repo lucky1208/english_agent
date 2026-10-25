@@ -22,10 +22,17 @@ export type LearnerVocabulary = {
   mastery_level: number;
 };
 
+export type LearnerSummary = {
+  summary: string;
+  topics: string[] | null;
+  created_at: string;
+};
+
 export type LearnerContext = {
   profile: LearnerProfile;
   corrections: LearnerCorrection[];
   vocabulary: LearnerVocabulary[];
+  summaries?: LearnerSummary[];
 };
 
 const DEFAULT_PROFILE: LearnerProfile = {
@@ -35,9 +42,17 @@ const DEFAULT_PROFILE: LearnerProfile = {
   preferences: "English first; explain important mistakes briefly in Chinese",
 };
 
-export async function loadLearnerContext(supabase: SupabaseClient, userId: string): Promise<LearnerContext> {
+export async function loadLearnerContext(supabase: SupabaseClient, userId: string, excludeConversationId?: string): Promise<LearnerContext> {
   const now = new Date().toISOString();
-  const [profileResult, correctionResult, vocabularyResult] = await Promise.all([
+  let summaryQuery = supabase
+    .from("learning_sessions")
+    .select("summary,topics,created_at,conversation_id")
+    .eq("user_id", userId)
+    .not("summary", "is", "")
+    .order("created_at", { ascending: false })
+    .limit(6);
+  if (excludeConversationId) summaryQuery = summaryQuery.neq("conversation_id", excludeConversationId);
+  const [profileResult, correctionResult, vocabularyResult, summaryResult] = await Promise.all([
     supabase.from("profiles").select("display_name,level,goals,preferences").eq("user_id", userId).maybeSingle(),
     supabase
       .from("corrections")
@@ -53,12 +68,14 @@ export async function loadLearnerContext(supabase: SupabaseClient, userId: strin
       .or(`next_review_at.is.null,next_review_at.lte.${now}`)
       .order("next_review_at", { ascending: true, nullsFirst: true })
       .limit(10),
+    summaryQuery,
   ]);
 
   return {
     profile: { ...DEFAULT_PROFILE, ...(profileResult.data ?? {}) },
     corrections: (correctionResult.data ?? []) as LearnerCorrection[],
     vocabulary: (vocabularyResult.data ?? []) as LearnerVocabulary[],
+    summaries: (summaryResult.data ?? []) as LearnerSummary[],
   };
 }
 
@@ -79,12 +96,20 @@ export function formatLearnerContext(context: LearnerContext, semanticMemory: st
         .join("\n")
     : "None due yet.";
   const displayName = profile.display_name?.replace(/\s+/g, " ").trim().slice(0, 60);
+  const summaries = context.summaries?.length
+    ? context.summaries
+        .map((item, index) => `${index + 1}. ${item.summary.replace(/\s+/g, " ").trim().slice(0, 500)}`)
+        .join("\n")
+    : "No past conversation summaries yet.";
   const sections = [
     "LEARNER PROFILE",
     ...(displayName ? [`Name: ${displayName}`] : []),
     `Level: ${profile.level || "A2"}`,
     `Goals: ${profile.goals || DEFAULT_PROFILE.goals}`,
     `Preferences: ${profile.preferences || DEFAULT_PROFILE.preferences}`,
+    "",
+    "PAST CONVERSATION MEMORY (high-level summaries; use to personalize, never claim exact details not listed)",
+    summaries,
     "",
     "RECENT UNCORRECTED MISTAKES (recycle these patterns in examples; do not invent ones not listed)",
     corrections,
