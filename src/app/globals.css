@@ -253,3 +253,6 @@ code { background: #eef3ef; border-radius: 5px; padding: 2px 6px; font-size: 12p
 @media (prefers-reduced-motion: reduce) {
   .dh-head, .dh-eye, .dh-mouth, .dh-ring, .dh-wave i { animation: none !important; }
 }
+
+.check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #52605a; cursor: pointer; }
+.check-row input { accent-color: var(--accent); }

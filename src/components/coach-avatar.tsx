@@ -1,17 +1,13 @@
-export type CoachState = "idle" | "connecting" | "listening" | "thinking" | "speaking" | "error";
+export type CoachState = "idle" | "listening" | "thinking" | "speaking" | "error";
 
 const COPY: Record<CoachState, { title: string; sub: string }> = {
   idle: {
     title: "准备好了就开始",
-    sub: "点下面的麦克风开始实时对话，或直接打字。",
-  },
-  connecting: {
-    title: "正在连接语音教练",
-    sub: "正在和百炼建立 WebRTC 连接，请稍候。",
+    sub: "直接输入英文，或点麦克风说完后自动发送。",
   },
   listening: {
     title: "我在听，慢慢说",
-    sub: "按你的节奏说完，停顿够了 AI 才会接话。",
+    sub: "说完后会自动发送；识别不准可以再说一次，或切回文字输入。",
   },
   thinking: {
     title: "正在理解你的意思",
@@ -22,23 +18,13 @@ const COPY: Record<CoachState, { title: string; sub: string }> = {
     sub: "先听完，再继续表达你的想法。",
   },
   error: {
-    title: "连接遇到问题",
-    sub: "查看下方错误提示，或重新开始语音。",
+    title: "遇到一点问题",
+    sub: "查看下方提示，稍后再试。",
   },
 };
 
-export function CoachStage({ state, pauseMs, voiceEnabled = true }: { state: CoachState; pauseMs: number; voiceEnabled?: boolean }) {
+export function CoachStage({ state }: { state: CoachState }) {
   const copy = COPY[state];
-  const display = voiceEnabled
-    ? copy
-    : {
-        ...copy,
-        sub: state === "idle"
-          ? "直接输入英文开始对话，AI 会先理解你的意思，再帮你纠正。"
-          : state === "speaking"
-            ? "正在组织更自然的英文表达。"
-            : copy.sub,
-      };
   return (
     <section className={`coach-stage state-${state}`}>
       <div className="dh-avatar" aria-hidden="true">
@@ -82,12 +68,9 @@ export function CoachStage({ state, pauseMs, voiceEnabled = true }: { state: Coa
         </svg>
       </div>
       <div className="coach-copy">
-        <div className="coach-meta">
-          <span className="pill">AI Coach</span>
-          {voiceEnabled && <span className="coach-pause">停顿 {(pauseMs / 1000).toFixed(1)} 秒后接话</span>}
-        </div>
-        <div className="coach-title" aria-live="polite">{display.title}</div>
-        <div className="coach-sub">{display.sub}</div>
+        <div className="coach-meta"><span className="pill">AI Coach</span></div>
+        <div className="coach-title" aria-live="polite">{copy.title}</div>
+        <div className="coach-sub">{copy.sub}</div>
       </div>
       <div className="dh-wave" aria-hidden="true">
         <i /><i /><i /><i /><i />
