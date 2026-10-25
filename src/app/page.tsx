@@ -722,14 +722,13 @@ export default function HomePage() {
                 <div className={`chat-row ${message.role}`} key={message.id}>
                   <div className="avatar">{message.role === "user" ? "You" : <Bot size={17} />}</div>
                   <div className="message-body">
-                    <div className="bubble">
-                      {message.content}
-                      {message.role === "assistant" && (
-                        <button className="speak-inline" type="button" aria-label="朗读这条回答" onClick={() => speak(message.content)}>
-                          <Volume2 size={12} />
-                        </button>
-                      )}
-                    </div>
+                    <div className="bubble">{message.content}</div>
+                    {message.role === "assistant" && (
+                      <button className="btn btn-small speak-message" type="button" aria-label="朗读这条回答" onClick={() => speak(message.content)}>
+                        <Volume2 size={14} />
+                        发音
+                      </button>
+                    )}
                     {message.metadata?.correction && <CorrectionCard correction={message.metadata.correction} />}
                     {message.metadata?.vocabulary && <VocabularyChips items={message.metadata.vocabulary} />}
                   </div>
