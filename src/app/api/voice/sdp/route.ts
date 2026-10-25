@@ -28,7 +28,8 @@ export async function POST(request: Request) {
   if (!rate.allowed) return NextResponse.json({ error: "语音连接请求过于频繁，稍后再试。" }, { status: rate.configurationError ? 503 : 429 });
 
   const dedicatedKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim();
-  const apiKey = dedicatedKey || process.env.DASHSCOPE_API_KEY?.trim();
+  const textKey = process.env.DASHSCOPE_API_KEY?.trim();
+  const apiKey = dedicatedKey || textKey;
   const model = process.env.DASHSCOPE_REALTIME_MODEL?.trim() || "qwen-audio-3.1-realtime-plus";
   const endpoint = process.env.DASHSCOPE_REALTIME_URL?.trim();
   if (!apiKey || !endpoint) {
@@ -82,9 +83,12 @@ export async function POST(request: Request) {
     if (!response.ok) {
       console.error("Bailian SDP exchange failed", url.host, response.status, answer.slice(0, 200));
       if (response.status === 401 || response.status === 403) {
-        const hint = dedicatedKey
-          ? "DASHSCOPE_REALTIME_API_KEY 无权限或被禁用。请确认它属于当前 endpoint 的 Workspace/地域，并且实时语音模型已授权。"
-          : "未配置 DASHSCOPE_REALTIME_API_KEY，代码回退使用了 DASHSCOPE_API_KEY；跨地域/跨 Workspace 时会返回 403。请为实时语音地域单独配置 Key。";
+        const sameAsText = Boolean(dedicatedKey && textKey && dedicatedKey === textKey);
+        const hint = sameAsText
+          ? "DASHSCOPE_REALTIME_API_KEY 和 DASHSCOPE_API_KEY 填成了同一个 Key。实时语音使用其他地域时，必须填该地域 API Key 页面创建的独立 Key。"
+          : dedicatedKey
+            ? "DASHSCOPE_REALTIME_API_KEY 无权限或被禁用。请确认它属于当前 endpoint 的 Workspace/地域，并且实时语音模型已授权。"
+            : "未配置 DASHSCOPE_REALTIME_API_KEY，代码回退使用了 DASHSCOPE_API_KEY；跨地域/跨 Workspace 时会返回 403。请为实时语音地域单独配置 Key。";
         return NextResponse.json(
           { error: `百炼 SDP 鉴权失败（HTTP ${response.status}）。${hint}`, host: url.host },
           { status: 502 },

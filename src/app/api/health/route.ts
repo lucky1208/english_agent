@@ -28,7 +28,9 @@ function realtimePathReady(value: string | undefined) {
 
 export async function GET() {
   const realtimeUrl = process.env.DASHSCOPE_REALTIME_URL?.trim();
-  const realtimeKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim();
+  const textKey = process.env.DASHSCOPE_API_KEY?.trim();
+  const dedicatedRealtimeKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim();
+  const realtimeKey = dedicatedRealtimeKey || textKey;
   return NextResponse.json({
     ok: true,
     service: "english-mate",
@@ -40,11 +42,12 @@ export async function GET() {
       bailianTextHost: hostOf(process.env.DASHSCOPE_BASE_URL),
       bailianRealtime: Boolean(realtimeKey && realtimeUrlReady(realtimeUrl) && realtimePathReady(realtimeUrl)),
       bailianRealtimeKey: Boolean(process.env.DASHSCOPE_REALTIME_API_KEY),
-      bailianRealtimeKeySource: process.env.DASHSCOPE_REALTIME_API_KEY
+      bailianRealtimeKeySource: dedicatedRealtimeKey
         ? "dedicated"
-        : process.env.DASHSCOPE_API_KEY
+        : textKey
           ? "fallback"
           : "none",
+      bailianRealtimeKeySameAsText: Boolean(dedicatedRealtimeKey && textKey && dedicatedRealtimeKey === textKey),
       bailianRealtimeHost: hostOf(realtimeUrl),
       bailianRealtimePlaceholder: Boolean(realtimeUrl && (realtimeUrl.includes("{") || realtimeUrl.includes("}"))),
       bailianRealtimePathValid: realtimePathReady(realtimeUrl),
