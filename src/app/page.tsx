@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Settings, Sparkles, Volume2, X } from "lucide-react";
+import { BookOpen, Bot, History, Mic, MicOff, PhoneOff, Plus, Send, Settings, Sparkles, Trash2, Volume2, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ensureSession, sessionAuthErrorMessage } from "@/lib/supabase/session";
@@ -25,7 +25,7 @@ type ChatMessage = {
   metadata?: { correction?: Correction | null; vocabulary?: Vocabulary[]; source?: string };
 };
 
-type Conversation = { id: string; title: string; mode: string };
+type Conversation = { id: string; title: string; mode: string; created_at?: string; updated_at?: string };
 type Profile = { level: string; goals: string; preferences: string; display_name?: string };
 type Stats = { corrections: number; vocabulary: number; due: number; reviewedToday: number };
 
@@ -109,6 +109,8 @@ export default function HomePage() {
   const [stats, setStats] = useState<Stats>({ corrections: 0, vocabulary: 0, due: 0, reviewedToday: 0 });
   const [savingProfile, setSavingProfile] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
   const [pauseMs, setPauseMs] = useState(4000);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -285,6 +287,32 @@ export default function HomePage() {
     setConversation(selected);
     conversationIdRef.current = selected.id;
     await loadMessages(selected.id);
+  }
+
+  async function deleteConversation(id: string) {
+    if (!window.confirm("确定删除这条对话及其消息、错题和摘要吗？此操作不可恢复。")) return;
+    setDeletingId(id);
+    setError("");
+    try {
+      const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "删除对话失败");
+      const remaining = conversations.filter((item) => item.id !== id);
+      setConversations(remaining);
+      if (conversation?.id === id) {
+        if (voiceActive || voiceStarting) stopVoice();
+        const next = remaining[0] ?? null;
+        setConversation(next);
+        conversationIdRef.current = next?.id ?? null;
+        if (next) await loadMessages(next.id);
+        else setMessages([]);
+      }
+      void loadSideData();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除对话失败");
+    } finally {
+      setDeletingId("");
+    }
   }
 
   async function sendMessage(event: FormEvent) {
@@ -668,19 +696,12 @@ export default function HomePage() {
                 <div className="panel-subtitle">英语纠错 · 学习记录</div>
               </div>
               <div className="panel-actions">
-                <select
-                  aria-label="选择对话"
-                  className="conversation-select"
-                  value={conversation?.id ?? ""}
-                  onChange={(e) => void switchConversation(e.target.value)}
-                  disabled={busy || voiceStarting || voiceActive}
-                >
-                  <option value="">新对话</option>
-                  {conversations.map((item) => <option value={item.id} key={item.id}>{item.title || "未命名对话"}</option>)}
-                </select>
                 <button className="btn btn-small" type="button" onClick={() => void switchConversation("")} disabled={busy || voiceStarting || voiceActive}>
                   <Plus size={14} />
                   新对话
+                </button>
+                <button className="btn btn-icon" type="button" aria-label="历史对话" title="历史对话" onClick={() => setHistoryOpen(true)}>
+                  <History size={17} />
                 </button>
                 <button className="btn btn-icon" type="button" aria-label="打开设置" title="设置" onClick={() => setSettingsOpen(true)}>
                   <Settings size={17} />
@@ -882,6 +903,63 @@ export default function HomePage() {
                   <Link className="btn" href="/settings">数据与账户</Link>
                 </div>
               </section>
+            </div>
+          </div>
+        )}
+
+        {historyOpen && (
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setHistoryOpen(false);
+            }}
+          >
+            <div className="modal-card" role="dialog" aria-modal="true" aria-label="历史对话">
+              <div className="modal-head">
+                <div className="modal-title">历史对话</div>
+                <button className="btn btn-icon" type="button" aria-label="关闭历史对话" onClick={() => setHistoryOpen(false)}>
+                  <X size={17} />
+                </button>
+              </div>
+
+              {conversations.length === 0 ? (
+                <p className="inline-muted">还没有历史对话。</p>
+              ) : (
+                <div className="history-list">
+                  {conversations.map((item) => {
+                    const date = item.updated_at || item.created_at;
+                    return (
+                      <div className={`history-item ${item.id === conversation?.id ? "active" : ""}`} key={item.id}>
+                        <button
+                          className="history-main"
+                          type="button"
+                          onClick={() => {
+                            setHistoryOpen(false);
+                            void switchConversation(item.id);
+                          }}
+                        >
+                          <span className="history-title">{item.title || "未命名对话"}</span>
+                          <span className="history-meta">
+                            {item.mode === "voice" ? "语音" : "文字"}
+                            {date ? ` · ${new Date(date).toLocaleDateString()}` : ""}
+                          </span>
+                        </button>
+                        <button
+                          className="btn btn-small btn-danger"
+                          type="button"
+                          aria-label={`删除 ${item.title || "对话"}`}
+                          disabled={deletingId === item.id}
+                          onClick={() => void deleteConversation(item.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {error && <div className="error-text">{error}</div>}
             </div>
           </div>
         )}

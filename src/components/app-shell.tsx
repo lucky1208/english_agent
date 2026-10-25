@@ -111,7 +111,7 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
   return <div className="app-shell">
     <aside className="sidebar">
       <Link href="/" className="brand"><span className="brand-mark"><Sprout size={18} /></span><span className="brand-text">English Mate</span></Link>
-      <div style={{ width: "100%" }}>{nav.map((item) => { const Icon = item.icon; const active = path === item.href; return <Link className={`nav-link ${active ? "active" : ""}`} key={item.href} href={item.href} title={item.label}><Icon size={18}/><span className="nav-text">{item.label}</span></Link>; })}</div>
+      <div className="nav-group">{nav.map((item) => { const Icon = item.icon; const active = path === item.href; return <Link className={`nav-link ${active ? "active" : ""}`} key={item.href} href={item.href} title={item.label}><Icon size={18}/><span className="nav-text">{item.label}</span></Link>; })}</div>
     </aside>
     <div className="main-column">
       <header className="topbar"><div className="topbar-title">{title}</div></header>
