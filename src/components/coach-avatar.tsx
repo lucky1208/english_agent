@@ -27,8 +27,18 @@ const COPY: Record<CoachState, { title: string; sub: string }> = {
   },
 };
 
-export function CoachStage({ state, pauseMs }: { state: CoachState; pauseMs: number }) {
+export function CoachStage({ state, pauseMs, voiceEnabled = true }: { state: CoachState; pauseMs: number; voiceEnabled?: boolean }) {
   const copy = COPY[state];
+  const display = voiceEnabled
+    ? copy
+    : {
+        ...copy,
+        sub: state === "idle"
+          ? "直接输入英文开始对话，AI 会先理解你的意思，再帮你纠正。"
+          : state === "speaking"
+            ? "正在组织更自然的英文表达。"
+            : copy.sub,
+      };
   return (
     <section className={`coach-stage state-${state}`}>
       <div className="dh-avatar" aria-hidden="true">
@@ -74,10 +84,10 @@ export function CoachStage({ state, pauseMs }: { state: CoachState; pauseMs: num
       <div className="coach-copy">
         <div className="coach-meta">
           <span className="pill">AI Coach</span>
-          <span className="coach-pause">停顿 {(pauseMs / 1000).toFixed(1)} 秒后接话</span>
+          {voiceEnabled && <span className="coach-pause">停顿 {(pauseMs / 1000).toFixed(1)} 秒后接话</span>}
         </div>
-        <div className="coach-title" aria-live="polite">{copy.title}</div>
-        <div className="coach-sub">{copy.sub}</div>
+        <div className="coach-title" aria-live="polite">{display.title}</div>
+        <div className="coach-sub">{display.sub}</div>
       </div>
       <div className="dh-wave" aria-hidden="true">
         <i /><i /><i /><i /><i />

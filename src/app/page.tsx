@@ -109,6 +109,7 @@ function VocabularyChips({ items }: { items: Vocabulary[] }) {
 }
 
 export default function HomePage() {
+  const voiceEnabled = process.env.NEXT_PUBLIC_ENABLE_VOICE === "true";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
@@ -726,7 +727,7 @@ export default function HomePage() {
             <div className="panel-head panel-head-wrap">
               <div>
                 <div className="panel-title">{conversation?.title || "新对话"}</div>
-                <div className="panel-subtitle">文字聊天 · 实时语音 · 英语纠错 · 长期学习记录</div>
+                <div className="panel-subtitle">{voiceEnabled ? "文字聊天 · 实时语音 · 英语纠错 · 长期学习记录" : "文字聊天 · 英语纠错 · 长期学习记录"}</div>
               </div>
               <div className="panel-actions">
                 <select
@@ -746,7 +747,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <CoachStage state={coachState} pauseMs={pauseMs} />
+            <CoachStage state={coachState} pauseMs={pauseMs} voiceEnabled={voiceEnabled} />
 
             <div className="chat-list">
               {messages.length === 0 && (
@@ -755,8 +756,12 @@ export default function HomePage() {
                   <strong className="empty-title">Hi! What would you like to talk about today?</strong>
                   <br />
                   试试输入：<code>I want to practice English for work.</code>
-                  <br />
-                  也可以点击下面的麦克风，直接开始实时语音对话。
+                  {voiceEnabled && (
+                    <>
+                      <br />
+                      也可以点击下面的麦克风，直接开始实时语音对话。
+                    </>
+                  )}
                 </div>
               )}
               {messages.map((message) => (
@@ -819,13 +824,15 @@ export default function HomePage() {
                   </button>
                 </div>
               </form>
-              <div className="voice-status">
-                <span className={`dot ${voiceActive ? "live" : ""}`} />
-                {voiceStatus}
-              </div>
+              {voiceEnabled && (
+                <div className="voice-status">
+                  <span className={`dot ${voiceActive ? "live" : ""}`} />
+                  {voiceStatus}
+                </div>
+              )}
               <div className="composer-actions">
                 <span className="inline-muted">Enter 发送 · Shift+Enter 换行</span>
-                <div className="composer-buttons">
+                {voiceEnabled && <div className="composer-buttons">
                   {audioBlocked && (
                     <button
                       className="btn btn-small"
@@ -858,10 +865,10 @@ export default function HomePage() {
                     {voiceActive || voiceStarting ? <PhoneOff size={16} /> : <Mic size={16} />}
                     {voiceStarting ? "取消连接" : voiceActive ? "结束语音" : "实时语音对话"}
                   </button>
-                </div>
+                </div>}
               </div>
               {error && <div className="error-text">{error}</div>}
-              <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only" />
+              {voiceEnabled && <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only" />}
             </div>
           </section>
 
@@ -886,7 +893,7 @@ export default function HomePage() {
               </button>
             </section>
 
-            <section className="side-card">
+            {voiceEnabled && <section className="side-card">
               <h3><Mic size={15} /> 语音设置</h3>
               <label className="field-label" htmlFor="pauseMs">AI 等待停顿时间</label>
               <input
@@ -907,7 +914,7 @@ export default function HomePage() {
               <p className="inline-muted" style={{ margin: "8px 0 0" }}>
                 停顿超过这个时间 AI 才会接话。建议 1.5–2.5 秒；修改后重新开始语音生效。
               </p>
-            </section>
+            </section>}
 
             <section className="side-card">
               <h3><Sparkles size={15} /> 学习状态</h3>
@@ -921,7 +928,7 @@ export default function HomePage() {
             <section className="side-card">
               <h3><Volume2 size={15} /> 练习建议</h3>
               <p className="record-body" style={{ margin: 0 }}>
-                先说完整意思，不用追求每句话都完美。AI 会先回应你的意思，再帮你把表达变得更自然。语音功能需要 HTTPS、麦克风权限和百炼实时语音模型权限；原始音频不会被保存。
+                先说完整意思，不用追求每句话都完美。AI 会先回应你的意思，再帮你把表达变得更自然。{voiceEnabled ? "语音功能需要 HTTPS、麦克风权限和百炼实时语音模型权限；原始音频不会被保存。" : "当前是文字练习模式，专注表达和纠错；之后开启语音不会影响已有学习记录。"}
               </p>
             </section>
           </aside>
