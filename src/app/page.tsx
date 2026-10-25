@@ -1,8 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Sparkles, Volume2 } from "lucide-react";
+import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Settings, Volume2, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ensureSession, sessionAuthErrorMessage } from "@/lib/supabase/session";
@@ -108,6 +107,8 @@ export default function HomePage() {
   const [profile, setProfile] = useState<Profile>({ level: "A2", goals: "", preferences: "" });
   const [stats, setStats] = useState<Stats>({ corrections: 0, vocabulary: 0, due: 0, reviewedToday: 0 });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pauseMs, setPauseMs] = useState(4000);
   const endRef = useRef<HTMLDivElement>(null);
 
   const [voiceActive, setVoiceActive] = useState(false);
@@ -229,6 +230,25 @@ export default function HomePage() {
   }, [messages, liveUser, liveAssistant]);
 
   useEffect(() => () => stopVoice(), [stopVoice]);
+
+  useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem("english-mate-pause-ms"));
+      if (Number.isFinite(stored) && stored >= 500 && stored <= 4000) setPauseMs(stored);
+    } catch {
+      // Keep the default when storage is unavailable.
+    }
+  }, []);
+
+  function updatePauseMs(value: number) {
+    const next = Math.min(4000, Math.max(500, value));
+    setPauseMs(next);
+    try {
+      window.localStorage.setItem("english-mate-pause-ms", String(next));
+    } catch {
+      // Storage may be unavailable in private mode.
+    }
+  }
 
   async function saveProfile() {
     setSavingProfile(true);
@@ -414,7 +434,7 @@ export default function HomePage() {
             input_audio_transcription: { language: "en" },
             output_audio: { language: "en" },
             max_history_turns: 20,
-            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: 4000 },
+            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: Math.min(4000, Math.max(500, pauseMs)) },
           },
         }));
         setVoiceStatus("会话已创建，正在初始化英语教练…");
@@ -639,36 +659,34 @@ export default function HomePage() {
   return (
     <AppShell title="英语对话">
       <main className="main-content">
-        <div className="eyebrow">YOUR DAILY PRACTICE</div>
-        <h1 className="page-heading">Speak more. Worry less.</h1>
-        <p className="page-lede">把英语放进真实交流里。AI 会先理解你想说什么，再帮你把表达变得更自然，并把值得复习的内容留下来。</p>
-
-        <div className="grid-main">
-          <section className="panel">
-            <div className="panel-head panel-head-wrap">
-              <div>
-                <div className="panel-title">{conversation?.title || "新对话"}</div>
-                <div className="panel-subtitle">文字聊天 · 实时语音 · 英语纠错 · 长期学习记录</div>
-              </div>
-              <div className="panel-actions">
-                <select
-                  aria-label="选择对话"
-                  className="conversation-select"
-                  value={conversation?.id ?? ""}
-                  onChange={(e) => void switchConversation(e.target.value)}
-                  disabled={busy || voiceStarting || voiceActive}
-                >
-                  <option value="">新对话</option>
-                  {conversations.map((item) => <option value={item.id} key={item.id}>{item.title || "未命名对话"}</option>)}
-                </select>
-                <button className="btn btn-small" type="button" onClick={() => void switchConversation("")} disabled={busy || voiceStarting || voiceActive}>
-                  <Plus size={14} />
-                  新对话
-                </button>
-              </div>
+        <section className="panel chat-panel">
+          <div className="panel-head panel-head-wrap">
+            <div>
+              <div className="panel-title">{conversation?.title || "新对话"}</div>
+              <div className="panel-subtitle">待复习 {stats.due} · 错题 {stats.corrections} · 词汇 {stats.vocabulary}</div>
             </div>
+            <div className="panel-actions">
+              <select
+                aria-label="选择对话"
+                className="conversation-select"
+                value={conversation?.id ?? ""}
+                onChange={(e) => void switchConversation(e.target.value)}
+                disabled={busy || voiceStarting || voiceActive}
+              >
+                <option value="">新对话</option>
+                {conversations.map((item) => <option value={item.id} key={item.id}>{item.title || "未命名对话"}</option>)}
+              </select>
+              <button className="btn btn-small" type="button" onClick={() => void switchConversation("")} disabled={busy || voiceStarting || voiceActive}>
+                <Plus size={14} />
+                新对话
+              </button>
+              <button className="btn btn-small" type="button" aria-label="设置" onClick={() => setSettingsOpen(true)}>
+                <Settings size={14} />
+              </button>
+            </div>
+          </div>
 
-            <div className="chat-list">
+          <div className="chat-list">
               {messages.length === 0 && (
                 <div className="empty-state">
                   <div className="empty-icon"><Bot size={30} /></div>
@@ -723,7 +741,7 @@ export default function HomePage() {
                   <textarea
                     className="textarea"
                     aria-label="输入英文"
-                    placeholder="Type in English…  用英语说说你今天想聊什么"
+                    placeholder="Type in English…"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {
@@ -783,11 +801,36 @@ export default function HomePage() {
               {error && <div className="error-text">{error}</div>}
               <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only" />
             </div>
-          </section>
+        </section>
 
-          <aside className="side-stack">
-            <section className="side-card">
-              <h3><BookOpen size={15} /> 我的学习档案</h3>
+        {settingsOpen && (
+          <div className="settings-overlay" role="dialog" aria-modal="true" onClick={() => setSettingsOpen(false)}>
+            <div className="settings-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="settings-sheet-head">
+                <strong>设置</strong>
+                <button className="btn btn-small" type="button" aria-label="关闭设置" onClick={() => setSettingsOpen(false)}>
+                  <X size={14} />
+                </button>
+              </div>
+              <label className="field-label" htmlFor="pauseMs">语音停顿时间</label>
+              <input
+                id="pauseMs"
+                className="range"
+                type="range"
+                min={500}
+                max={4000}
+                step={100}
+                value={pauseMs}
+                onChange={(e) => updatePauseMs(Number(e.target.value))}
+              />
+              <div className="pause-row">
+                <span className="inline-muted">更快接话</span>
+                <strong className="pause-value">{(pauseMs / 1000).toFixed(1)} 秒</strong>
+                <span className="inline-muted">最多 4 秒</span>
+              </div>
+              <p className="inline-muted" style={{ margin: "0 0 16px" }}>
+                停顿超过这个时间 AI 才会接话；修改后重新开始语音生效。
+              </p>
               <label className="field-label" htmlFor="level">英语水平</label>
               <select id="level" className="field" value={profile.level} onChange={(e) => setProfile({ ...profile, level: e.target.value })}>
                 <option value="A1">A1 · 入门</option>
@@ -801,28 +844,12 @@ export default function HomePage() {
               <textarea id="goals" className="field" rows={2} value={profile.goals} onChange={(e) => setProfile({ ...profile, goals: e.target.value })} />
               <label className="field-label" htmlFor="preferences">交流偏好</label>
               <textarea id="preferences" className="field" rows={2} value={profile.preferences} onChange={(e) => setProfile({ ...profile, preferences: e.target.value })} />
-              <button className="btn" style={{ width: "100%" }} onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? "保存中…" : "保存学习档案"}
+              <button className="btn btn-primary" style={{ width: "100%" }} onClick={saveProfile} disabled={savingProfile}>
+                {savingProfile ? "保存中…" : "保存"}
               </button>
-            </section>
-
-            <section className="side-card">
-              <h3><Sparkles size={15} /> 学习状态</h3>
-              <div className="mini-stat"><span>待复习</span><strong>{stats.due}</strong></div>
-              <div className="mini-stat"><span>今天已复习</span><strong>{stats.reviewedToday}</strong></div>
-              <div className="mini-stat"><span>错题总数</span><strong>{stats.corrections}</strong></div>
-              <div className="mini-stat"><span>个人词汇</span><strong>{stats.vocabulary}</strong></div>
-              <Link className="btn btn-primary review-cta" href="/review">开始今日复习</Link>
-            </section>
-
-            <section className="side-card">
-              <h3><Volume2 size={15} /> 练习建议</h3>
-              <p className="record-body" style={{ margin: 0 }}>
-                先说完整意思，不用追求每句话都完美。AI 会先回应你的意思，再帮你把表达变得更自然。语音功能需要 HTTPS、麦克风权限和百炼实时语音模型权限；原始音频不会被保存。
-              </p>
-            </section>
-          </aside>
-        </div>
+            </div>
+          </div>
+        )}
       </main>
     </AppShell>
   );
