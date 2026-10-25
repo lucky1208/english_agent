@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Sparkles, Volume2 } from "lucide-react";
+import { BookOpen, Bot, Mic, MicOff, PhoneOff, Plus, Send, Settings, Sparkles, Volume2, X } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ensureSession, sessionAuthErrorMessage } from "@/lib/supabase/session";
@@ -108,11 +108,13 @@ export default function HomePage() {
   const [profile, setProfile] = useState<Profile>({ level: "A2", goals: "", preferences: "" });
   const [stats, setStats] = useState<Stats>({ corrections: 0, vocabulary: 0, due: 0, reviewedToday: 0 });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pauseMs, setPauseMs] = useState(4000);
   const endRef = useRef<HTMLDivElement>(null);
 
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceStarting, setVoiceStarting] = useState(false);
-  const [voiceStatus, setVoiceStatus] = useState("语音模式：等待开始");
+  const [voiceStatus, setVoiceStatus] = useState("语音待开始");
   const [micMuted, setMicMuted] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [liveUser, setLiveUser] = useState("");
@@ -228,7 +230,26 @@ export default function HomePage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, liveUser, liveAssistant]);
 
+  useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem("english-mate-pause-ms"));
+      if (Number.isFinite(stored) && stored >= 1000 && stored <= 4000) setPauseMs(stored);
+    } catch {
+      // Keep the default.
+    }
+  }, []);
+
   useEffect(() => () => stopVoice(), [stopVoice]);
+
+  function updatePauseMs(value: number) {
+    const next = Math.min(4000, Math.max(1000, value));
+    setPauseMs(next);
+    try {
+      window.localStorage.setItem("english-mate-pause-ms", String(next));
+    } catch {
+      // Storage may be unavailable in private mode.
+    }
+  }
 
   async function saveProfile() {
     setSavingProfile(true);
@@ -414,7 +435,7 @@ export default function HomePage() {
             input_audio_transcription: { language: "en" },
             output_audio: { language: "en" },
             max_history_turns: 20,
-            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: 4000 },
+            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: Math.min(4000, Math.max(1000, pauseMs)) },
           },
         }));
         setVoiceStatus("会话已创建，正在初始化英语教练…");
@@ -638,17 +659,13 @@ export default function HomePage() {
 
   return (
     <AppShell title="英语对话">
-      <main className="main-content">
-        <div className="eyebrow">YOUR DAILY PRACTICE</div>
-        <h1 className="page-heading">Speak more. Worry less.</h1>
-        <p className="page-lede">把英语放进真实交流里。AI 会先理解你想说什么，再帮你把表达变得更自然，并把值得复习的内容留下来。</p>
-
-        <div className="grid-main">
+      <main className="main-content chat-page">
+        <div className="chat-only">
           <section className="panel">
             <div className="panel-head panel-head-wrap">
               <div>
                 <div className="panel-title">{conversation?.title || "新对话"}</div>
-                <div className="panel-subtitle">文字聊天 · 实时语音 · 英语纠错 · 长期学习记录</div>
+                <div className="panel-subtitle">英语纠错 · 学习记录</div>
               </div>
               <div className="panel-actions">
                 <select
@@ -665,6 +682,9 @@ export default function HomePage() {
                   <Plus size={14} />
                   新对话
                 </button>
+                <button className="btn btn-icon" type="button" aria-label="打开设置" title="设置" onClick={() => setSettingsOpen(true)}>
+                  <Settings size={17} />
+                </button>
               </div>
             </div>
 
@@ -672,11 +692,9 @@ export default function HomePage() {
               {messages.length === 0 && (
                 <div className="empty-state">
                   <div className="empty-icon"><Bot size={30} /></div>
-                  <strong className="empty-title">Hi! What would you like to talk about today?</strong>
+                  <strong className="empty-title">Start with a simple sentence.</strong>
                   <br />
-                  试试输入：<code>I want to practice English for work.</code>
-                  <br />
-                  也可以点击下面的麦克风，直接开始实时语音对话。
+                  输入英文，或点麦克风直接说话。
                 </div>
               )}
               {messages.map((message) => (
@@ -723,7 +741,7 @@ export default function HomePage() {
                   <textarea
                     className="textarea"
                     aria-label="输入英文"
-                    placeholder="Type in English…  用英语说说你今天想聊什么"
+                    placeholder="Type in English…"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => {
@@ -744,7 +762,6 @@ export default function HomePage() {
                 {voiceStatus}
               </div>
               <div className="composer-actions">
-                <span className="inline-muted">Enter 发送 · Shift+Enter 换行</span>
                 <div className="composer-buttons">
                   {audioBlocked && (
                     <button
@@ -766,6 +783,7 @@ export default function HomePage() {
                   )}
                   <button
                     className={`btn ${voiceActive || voiceStarting ? "btn-danger" : ""}`}
+                    type="button"
                     onClick={() => {
                       if (voiceActive || voiceStarting) {
                         stopVoice();
@@ -784,45 +802,80 @@ export default function HomePage() {
               <audio ref={remoteAudioRef} autoPlay playsInline className="sr-only" />
             </div>
           </section>
-
-          <aside className="side-stack">
-            <section className="side-card">
-              <h3><BookOpen size={15} /> 我的学习档案</h3>
-              <label className="field-label" htmlFor="level">英语水平</label>
-              <select id="level" className="field" value={profile.level} onChange={(e) => setProfile({ ...profile, level: e.target.value })}>
-                <option value="A1">A1 · 入门</option>
-                <option value="A2">A2 · 初级</option>
-                <option value="B1">B1 · 中级</option>
-                <option value="B2">B2 · 中高级</option>
-                <option value="C1">C1 · 高级</option>
-                <option value="C2">C2 · 熟练</option>
-              </select>
-              <label className="field-label" htmlFor="goals">学习目标</label>
-              <textarea id="goals" className="field" rows={2} value={profile.goals} onChange={(e) => setProfile({ ...profile, goals: e.target.value })} />
-              <label className="field-label" htmlFor="preferences">交流偏好</label>
-              <textarea id="preferences" className="field" rows={2} value={profile.preferences} onChange={(e) => setProfile({ ...profile, preferences: e.target.value })} />
-              <button className="btn" style={{ width: "100%" }} onClick={saveProfile} disabled={savingProfile}>
-                {savingProfile ? "保存中…" : "保存学习档案"}
-              </button>
-            </section>
-
-            <section className="side-card">
-              <h3><Sparkles size={15} /> 学习状态</h3>
-              <div className="mini-stat"><span>待复习</span><strong>{stats.due}</strong></div>
-              <div className="mini-stat"><span>今天已复习</span><strong>{stats.reviewedToday}</strong></div>
-              <div className="mini-stat"><span>错题总数</span><strong>{stats.corrections}</strong></div>
-              <div className="mini-stat"><span>个人词汇</span><strong>{stats.vocabulary}</strong></div>
-              <Link className="btn btn-primary review-cta" href="/review">开始今日复习</Link>
-            </section>
-
-            <section className="side-card">
-              <h3><Volume2 size={15} /> 练习建议</h3>
-              <p className="record-body" style={{ margin: 0 }}>
-                先说完整意思，不用追求每句话都完美。AI 会先回应你的意思，再帮你把表达变得更自然。语音功能需要 HTTPS、麦克风权限和百炼实时语音模型权限；原始音频不会被保存。
-              </p>
-            </section>
-          </aside>
         </div>
+
+        {settingsOpen && (
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setSettingsOpen(false);
+            }}
+          >
+            <div className="modal-card" role="dialog" aria-modal="true" aria-label="设置">
+              <div className="modal-head">
+                <div className="modal-title">设置</div>
+                <button className="btn btn-icon" type="button" aria-label="关闭设置" onClick={() => setSettingsOpen(false)}>
+                  <X size={17} />
+                </button>
+              </div>
+
+              <section className="modal-section">
+                <h3>语音停顿</h3>
+                <p className="inline-muted">AI 等你停顿多久后接话。修改后重新开始语音生效。</p>
+                <input
+                  type="range"
+                  className="range"
+                  min={1000}
+                  max={4000}
+                  step={500}
+                  value={pauseMs}
+                  onChange={(e) => updatePauseMs(Number(e.target.value))}
+                  aria-label="语音停顿时间"
+                />
+                <div className="pause-row">
+                  <span>1 秒</span>
+                  <strong className="pause-value">{(pauseMs / 1000).toFixed(1)} 秒</strong>
+                  <span>4 秒</span>
+                </div>
+              </section>
+
+              <section className="modal-section">
+                <h3><BookOpen size={14} /> 学习档案</h3>
+                <label className="field-label" htmlFor="level">英语水平</label>
+                <select id="level" className="field" value={profile.level} onChange={(e) => setProfile({ ...profile, level: e.target.value })}>
+                  <option value="A1">A1 · 入门</option>
+                  <option value="A2">A2 · 初级</option>
+                  <option value="B1">B1 · 中级</option>
+                  <option value="B2">B2 · 中高级</option>
+                  <option value="C1">C1 · 高级</option>
+                  <option value="C2">C2 · 熟练</option>
+                </select>
+                <label className="field-label" htmlFor="goals">学习目标</label>
+                <textarea id="goals" className="field" rows={2} value={profile.goals} onChange={(e) => setProfile({ ...profile, goals: e.target.value })} />
+                <label className="field-label" htmlFor="preferences">交流偏好</label>
+                <textarea id="preferences" className="field" rows={2} value={profile.preferences} onChange={(e) => setProfile({ ...profile, preferences: e.target.value })} />
+                <button className="btn btn-primary" onClick={saveProfile} disabled={savingProfile}>
+                  {savingProfile ? "保存中…" : "保存学习档案"}
+                </button>
+              </section>
+
+              <section className="modal-section">
+                <h3><Sparkles size={14} /> 学习状态</h3>
+                <div className="modal-stats">
+                  <div><strong>{stats.due}</strong><span>待复习</span></div>
+                  <div><strong>{stats.corrections}</strong><span>错题</span></div>
+                  <div><strong>{stats.vocabulary}</strong><span>词汇</span></div>
+                </div>
+                <div className="modal-actions">
+                  <Link className="btn" href="/review">今日复习</Link>
+                  <Link className="btn" href="/progress">学习进度</Link>
+                  <Link className="btn" href="/settings">数据与账户</Link>
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
       </main>
     </AppShell>
   );
