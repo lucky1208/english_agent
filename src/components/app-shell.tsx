@@ -21,7 +21,7 @@ const nav = [
   { href: "/settings", label: "设置与数据", icon: Settings },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode; title?: string }) {
+export function AppShell({ children, title }: { children: React.ReactNode; title: string }) {
   const path = usePathname();
   const [userLabel, setUserLabel] = useState("");
   const [authReady, setAuthReady] = useState(false);
@@ -111,9 +111,11 @@ export function AppShell({ children }: { children: React.ReactNode; title?: stri
   return <div className="app-shell">
     <aside className="sidebar">
       <Link href="/" className="brand"><span className="brand-mark"><Sprout size={18} /></span><span className="brand-text">English Mate</span></Link>
-      <div style={{ width: "100%" }}><div className="nav-label">MENU</div>{nav.map((item) => { const Icon = item.icon; const active = path === item.href; return <Link className={`nav-link ${active ? "active" : ""}`} key={item.href} href={item.href} title={item.label}><Icon size={18}/><span className="nav-text">{item.label}</span></Link>; })}</div>
+      <div style={{ width: "100%" }}><div className="nav-label">WORKSPACE</div>{nav.map((item) => { const Icon = item.icon; const active = path === item.href; return <Link className={`nav-link ${active ? "active" : ""}`} key={item.href} href={item.href} title={item.label}><Icon size={18}/><span className="nav-text">{item.label}</span></Link>; })}</div>
+      <div className="sidebar-bottom"><strong>Small steps, every day.</strong><br/>每一次真实对话，都会变成你的英语进步。</div>
     </aside>
     <div className="main-column">
+      <header className="topbar"><div><div className="topbar-title">{title}</div><div className="topbar-subtitle">{userLabel}</div></div><span className="pill">{userLabel}</span></header>
       {children}
     </div>
   </div>;
