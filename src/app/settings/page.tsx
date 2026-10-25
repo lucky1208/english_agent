@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Download, ShieldCheck, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { clearCachedSession } from "@/lib/supabase/session";
 
 type MemoryItem = { id: string; content: string; memoryType: string; createdAt: number | null };
 type MemoryData = { configured: boolean; memories: MemoryItem[]; total: number; error?: string };
@@ -74,6 +75,7 @@ export default function SettingsPage() {
         setMessage(`账户与学习数据已删除${data.deletedMemories ? `，并清理了 ${data.deletedMemories} 条长期记忆` : ""}。`);
       }
       if (data.authDeleted) {
+        clearCachedSession();
         try {
           const supabase = createSupabaseBrowserClient();
           await supabase.auth.signOut();

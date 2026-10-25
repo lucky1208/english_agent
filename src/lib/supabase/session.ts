@@ -1,6 +1,8 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 export const ACCESS_CODE_STORAGE_KEY = "english-mate-access-code";
+const SESSION_CACHE_KEY = "english-mate-session-cache";
+const SESSION_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
 export class AccessCodeRequiredError extends Error {
   constructor(message = "需要访问码。") {
@@ -25,6 +27,42 @@ type FixedAuthResponse = {
 
 let inFlight: Promise<SessionUser> | null = null;
 
+export function getCachedSession(): SessionUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionUser & { savedAt?: number };
+    if (!parsed?.id || !parsed.label || !parsed.savedAt || Date.now() - parsed.savedAt > SESSION_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(SESSION_CACHE_KEY);
+      return null;
+    }
+    return { id: parsed.id, email: parsed.email, isAnonymous: Boolean(parsed.isAnonymous), label: parsed.label };
+  } catch {
+    return null;
+  }
+}
+
+export function clearCachedSession() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(SESSION_CACHE_KEY);
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+function rememberSession(user: SessionUser) {
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ ...user, savedAt: Date.now() }));
+    } catch {
+      // Ignore storage errors.
+    }
+  }
+  return user;
+}
+
 function fromSupabaseUser(user: User): SessionUser {
   return {
     id: user.id,
@@ -35,6 +73,8 @@ function fromSupabaseUser(user: User): SessionUser {
 }
 
 export async function ensureSession(supabase: SupabaseClient): Promise<SessionUser> {
+  const cached = getCachedSession();
+  if (cached) return cached;
   if (inFlight) return inFlight;
 
   const task = (async () => {
@@ -49,12 +89,12 @@ export async function ensureSession(supabase: SupabaseClient): Promise<SessionUs
     const payload = (await response.json().catch(() => ({}))) as FixedAuthResponse;
 
     if (response.ok && payload.user) {
-      return {
+      return rememberSession({
         id: payload.user.id,
         email: payload.user.email,
         isAnonymous: Boolean(payload.user.isAnonymous),
         label: payload.user.email ?? "固定账户",
-      };
+      });
     }
 
     if (response.status === 401 && payload.requiresCode) {
@@ -63,13 +103,13 @@ export async function ensureSession(supabase: SupabaseClient): Promise<SessionUs
 
     if (response.status === 503 && payload.configured === false) {
       const { data } = await supabase.auth.getUser();
-      if (data.user) return fromSupabaseUser(data.user);
+      if (data.user) return rememberSession(fromSupabaseUser(data.user));
       const { data: anonymous, error } = await supabase.auth.signInAnonymously({
         options: { data: { display_name: "游客" } },
       });
       if (error) throw error;
       if (!anonymous.user) throw new Error("匿名登录没有返回用户。");
-      return fromSupabaseUser(anonymous.user);
+      return rememberSession(fromSupabaseUser(anonymous.user));
     }
 
     throw new Error(payload.error || "固定账户登录失败。");

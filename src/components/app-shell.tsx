@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, BookMarked, BookOpen, MessageCircle, RefreshCcw, Settings, Sprout } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   ACCESS_CODE_STORAGE_KEY,
   AccessCodeRequiredError,
+  clearCachedSession,
   ensureSession,
+  getCachedSession,
   sessionAuthErrorMessage,
 } from "@/lib/supabase/session";
 
@@ -28,6 +30,13 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
   const [authError, setAuthError] = useState("");
   const [codeRequired, setCodeRequired] = useState(false);
   const [accessCode, setAccessCode] = useState("");
+
+  useLayoutEffect(() => {
+    const cached = getCachedSession();
+    if (!cached) return;
+    setUserLabel(cached.label);
+    setAuthReady(true);
+  }, []);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -65,6 +74,7 @@ export function AppShell({ children, title }: { children: React.ReactNode; title
     event.preventDefault();
     const code = accessCode.trim();
     if (!code) return;
+    clearCachedSession();
     window.sessionStorage.setItem(ACCESS_CODE_STORAGE_KEY, code);
     window.location.reload();
   }
