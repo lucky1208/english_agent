@@ -45,6 +45,16 @@ function speak(text: string) {
   window.speechSynthesis.speak(utterance);
 }
 
+function getIceServers(): RTCIceServer[] {
+  const url = process.env.NEXT_PUBLIC_TURN_URL;
+  if (!url) return [];
+  return [{
+    urls: url,
+    username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+    credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+  }];
+}
+
 function waitForIceComplete(pc: RTCPeerConnection, timeoutMs = 15_000) {
   return new Promise<void>((resolve, reject) => {
     if (pc.iceGatheringState === "complete") {
@@ -441,9 +451,16 @@ export default function HomePage() {
       }
       streamRef.current = stream;
 
-      const pc = new RTCPeerConnection();
+      const pc = new RTCPeerConnection({ iceServers: getIceServers() });
       pcRef.current = pc;
       const sender = pc.addTransceiver("audio", { direction: "sendrecv" }).sender;
+
+      pc.oniceconnectionstatechange = () => {
+        if (!isCurrent()) return;
+        if (pc.iceConnectionState === "checking" || pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+          setVoiceStatus(`WebRTC ICE: ${pc.iceConnectionState}`);
+        }
+      };
 
       const tryInitialize = () => {
         if (!isCurrent() || sessionUpdateSentRef.current || !sessionCreatedRef.current) return;
@@ -644,8 +661,10 @@ export default function HomePage() {
         if (pc.connectionState === "connected") {
           setVoiceStatus("连接已建立，正在初始化模型…");
           tryInitialize();
+        } else if (pc.connectionState === "connecting") {
+          setVoiceStatus(`WebRTC 连接中（ICE: ${pc.iceConnectionState}）`);
         } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected" || pc.connectionState === "closed") {
-          setError("语音连接中断，请重新开始。");
+          setError("WebRTC 媒体连接中断。请关闭 VPN/代理、换网络，或配置 TURN 后重试。");
           stopVoice();
           setCoachState("error");
         }
@@ -673,7 +692,7 @@ export default function HomePage() {
       setVoiceStatus("正在连接百炼实时语音模型…");
       window.setTimeout(() => {
         if (!isCurrent() || sessionReadyRef.current) return;
-        setError("实时语音初始化超时，请检查模型权限和网络后重试。");
+        setError("实时语音初始化超时：SDP 已成功，但 WebRTC 媒体连接未建立。请尝试关闭 VPN/代理、换网络，或配置 TURN。");
         stopVoice();
         setCoachState("error");
         setVoiceStatus("语音初始化超时");
