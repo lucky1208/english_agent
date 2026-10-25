@@ -7,7 +7,7 @@
 ## 1. 功能
 
 - 免登录固定账户：配置一个 Supabase 账户后自动登录，适合个人使用；未配置时回退到 Supabase 匿名游客。所有数据仍由 PostgreSQL RLS 按用户隔离。
-- 语音功能默认隐藏，设置 `NEXT_PUBLIC_ENABLE_VOICE=true` 才显示；文字聊天、纠错、复习不受影响。
+- 语音功能默认显示，设置 `NEXT_PUBLIC_ENABLE_VOICE=false` 可切换为纯文字界面；文字聊天、纠错、复习不受影响。
 - 百炼 OpenAI 兼容文本接口（默认 `qwen-plus`）生成对话、纠错和词汇建议。
 - 实时语音：浏览器 WebRTC 直连百炼，服务端只代理 SDP 鉴权，不经过 Vercel 转发音频。
 - 语音实时字幕、打断、静音；通话结束后保存用户和 AI 的转写文本。

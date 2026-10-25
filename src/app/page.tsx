@@ -109,7 +109,7 @@ function VocabularyChips({ items }: { items: Vocabulary[] }) {
 }
 
 export default function HomePage() {
-  const voiceEnabled = process.env.NEXT_PUBLIC_ENABLE_VOICE === "true";
+  const voiceEnabled = process.env.NEXT_PUBLIC_ENABLE_VOICE !== "false";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
