@@ -40,6 +40,11 @@ export async function GET() {
       bailianTextHost: hostOf(process.env.DASHSCOPE_BASE_URL),
       bailianRealtime: Boolean(realtimeKey && realtimeUrlReady(realtimeUrl) && realtimePathReady(realtimeUrl)),
       bailianRealtimeKey: Boolean(process.env.DASHSCOPE_REALTIME_API_KEY),
+      bailianRealtimeKeySource: process.env.DASHSCOPE_REALTIME_API_KEY
+        ? "dedicated"
+        : process.env.DASHSCOPE_API_KEY
+          ? "fallback"
+          : "none",
       bailianRealtimeHost: hostOf(realtimeUrl),
       bailianRealtimePlaceholder: Boolean(realtimeUrl && (realtimeUrl.includes("{") || realtimeUrl.includes("}"))),
       bailianRealtimePathValid: realtimePathReady(realtimeUrl),

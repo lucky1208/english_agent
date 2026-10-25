@@ -27,7 +27,8 @@ export async function POST(request: Request) {
   const rate = await enforceRateLimit(user.id, "voice-sdp", 10);
   if (!rate.allowed) return NextResponse.json({ error: "语音连接请求过于频繁，稍后再试。" }, { status: rate.configurationError ? 503 : 429 });
 
-  const apiKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim();
+  const dedicatedKey = process.env.DASHSCOPE_REALTIME_API_KEY?.trim();
+  const apiKey = dedicatedKey || process.env.DASHSCOPE_API_KEY?.trim();
   const model = process.env.DASHSCOPE_REALTIME_MODEL?.trim() || "qwen-audio-3.1-realtime-plus";
   const endpoint = process.env.DASHSCOPE_REALTIME_URL?.trim();
   if (!apiKey || !endpoint) {
@@ -80,6 +81,15 @@ export async function POST(request: Request) {
     const answer = await response.text();
     if (!response.ok) {
       console.error("Bailian SDP exchange failed", url.host, response.status, answer.slice(0, 200));
+      if (response.status === 401 || response.status === 403) {
+        const hint = dedicatedKey
+          ? "DASHSCOPE_REALTIME_API_KEY 无权限或被禁用。请确认它属于当前 endpoint 的 Workspace/地域，并且实时语音模型已授权。"
+          : "未配置 DASHSCOPE_REALTIME_API_KEY，代码回退使用了 DASHSCOPE_API_KEY；跨地域/跨 Workspace 时会返回 403。请为实时语音地域单独配置 Key。";
+        return NextResponse.json(
+          { error: `百炼 SDP 鉴权失败（HTTP ${response.status}）。${hint}`, host: url.host },
+          { status: 502 },
+        );
+      }
       return NextResponse.json(
         { error: `百炼 SDP 协商失败（HTTP ${response.status}）。请核对地域、模型权限、Workspace endpoint 与 API Key。`, host: url.host },
         { status: 502 },
