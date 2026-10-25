@@ -414,7 +414,7 @@ export default function HomePage() {
             input_audio_transcription: { language: "en" },
             output_audio: { language: "en" },
             max_history_turns: 20,
-            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: 700 },
+            turn_detection: { type: "server_vad", threshold: 0.55, silence_duration_ms: 4000 },
           },
         }));
         setVoiceStatus("会话已创建，正在初始化英语教练…");
