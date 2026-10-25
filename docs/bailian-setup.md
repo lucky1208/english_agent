@@ -1,8 +1,6 @@
 # 阿里云百炼配置指南
 
-> 当前版本已移除 WebRTC 实时语音。下面的实时语音章节仅保留作历史参考；文字模型和长期记忆仍然适用。语音输入现在使用浏览器 `SpeechRecognition`，不需要百炼实时语音模型。
-
-本项目的 AI 能力来自阿里云百炼（Model Studio）。文字模型和长期记忆是独立接口；地域、业务空间和 API Key 必须匹配。
+本项目的 AI 能力全部来自阿里云百炼（Model Studio）。文本、实时语音和长期记忆是三个独立接口，可以分别开通；地域、业务空间和 API Key 必须匹配。
 
 > **重要：`{WorkspaceId}` 是占位符，不是字面值。**
 > 在百炼控制台 → 业务空间管理 → 复制 **API Host**（例如 `llm-xxxx.cn-beijing.maas.aliyuncs.com`），
@@ -183,35 +181,7 @@ curl -X POST "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v2/apps/mem
 - 删除接口本身只认 `memory_node_id`，所以应用在删除前会先列出当前用户的记忆并校验归属。
 - 记忆抽取是异步/最终一致的；刚写入的内容不一定立刻能检索到。
 
-## 6. 跨境网络：北京 endpoint 超时
-
-如果 Vercel 日志/页面出现：
-
-```text
-UND_ERR_CONNECT_TIMEOUT
-```
-
-说明 Vercel 函数无法连接百炼 endpoint。即使函数已经部署到香港 `hkg1`，部分网络仍无法访问北京 `*.cn-beijing.maas.aliyuncs.com`。
-
-推荐方案：把**实时语音**切到百炼中国香港或新加坡地域。
-
-1. 百炼控制台右上角切换地域到 **中国香港**（`cn-hongkong`）或 **新加坡**（`ap-southeast-1`）。
-2. 在目标地域创建/进入业务空间，复制 **API Host**，并创建该地域的 API Key。
-3. 确认目标地域的模型列表中有实时语音模型。
-4. 在 Vercel 增加/修改：
-   ```env
-   DASHSCOPE_REALTIME_API_KEY=目标地域的 API Key
-   DASHSCOPE_REALTIME_URL=https://{目标地域 API Host}/api/v1/webrtc/realtime
-   DASHSCOPE_REALTIME_MODEL=该地域可用的实时语音模型
-   DASHSCOPE_REALTIME_VOICE=longanqian_v3.1
-   ```
-5. 文字模型可以继续使用北京的 `DASHSCOPE_API_KEY` 和 `dashscope.aliyuncs.com`，两套 Key 互不影响。
-6. Redeploy 后查看 `/api/health`：`bailianRealtimeKey: true`，且 `deploymentRegion` 为 `hkg1`。
-7. 如果使用新加坡实时语音，可把 `vercel.json` 的 `regions` 改为 `["sin1"]` 或保留 `hkg1` 观察延迟。
-
-如果目标地域没有实时语音模型，只能在中国大陆/香港服务器上部署一个 SDP 代理，再由 Vercel 转发到该代理。
-
-## 7. 常见错误
+## 6. 常见错误
 
 | 现象 | 可能原因 | 处理 |
 | --- | --- | --- |
@@ -223,7 +193,7 @@ UND_ERR_CONNECT_TIMEOUT
 | 记忆为空 | 未配置记忆 API 或模型未抽取 | 检查环境变量；多完成几轮对话后再查 |
 | 生产环境 503 | 未配置 Upstash 且没有固定账户 | 配置 Upstash，或设置 `FIXED_ACCOUNT_EMAIL` 使用个人内存回退 |
 
-## 8. 费用与配额
+## 7. 费用与配额
 
 - 在百炼控制台设置费用预警、模型限流和每日预算。
 - 本项目已做每用户每分钟限流，但公开产品还需要按套餐/额度计费。
